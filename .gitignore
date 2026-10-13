@@ -1,0 +1,10 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+# Variáveis com dados pessoais (e-mail, usuário do SSO): nunca no Git
+private.auto.tfvars
+
+# Sistema
+.DS_Store
