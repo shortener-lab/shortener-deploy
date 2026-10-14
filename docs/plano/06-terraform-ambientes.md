@@ -729,7 +729,7 @@ variable "domain_filter" {
 
 variable "git_repo_url" {
   type        = string
-  description = "Repo GitOps lido pelo ArgoCD (https://github.com/<usuario>/shortener-deploy.git)"
+  description = "Repo GitOps lido pelo ArgoCD (https://github.com/<org>/shortener-deploy.git)"
 }
 
 variable "git_revision" {
@@ -1135,7 +1135,7 @@ module "platform" {
   redis_url            = data.terraform_remote_state.aws.outputs.redis_url
   kafka_brokers        = data.terraform_remote_state.aws.outputs.kafka_brokers
   cloudflare_api_token = var.cloudflare_api_token
-  git_repo_url         = "https://github.com/<usuario>/shortener-deploy.git"
+  git_repo_url         = "https://github.com/<org>/shortener-deploy.git"
 
   oidc_issuer     = local.bootstrap.oidc_issuer
   oidc_jwks_url   = local.bootstrap.oidc_jwks_url

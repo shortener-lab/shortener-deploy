@@ -13,7 +13,7 @@
  PR ─▶ CI ─▶ merge na main             PR ─▶ CI ─▶ merge na main
             │                                     │
    Release: imagem                       Release: imagem
-   ghcr.io/<usuario>/shortener-api:sha-aaa1111    ghcr.io/<usuario>/shortener-web:sha-bbb2222
+   ghcr.io/<org>/shortener-api:sha-aaa1111    ghcr.io/<org>/shortener-web:sha-bbb2222
             │  job deploy-staging                 │  job deploy-staging
             │  (token do GitHub App, ~1h)         │  (token do GitHub App, ~1h)
             ▼                                     ▼
@@ -37,42 +37,48 @@
 
 ---
 
-## Tarefa 8.1: GitHub App `shortener-deployer-<usuario>`
+## Tarefa 8.1: GitHub App `<org>-deployer`
 
 **Conceitos:**
 - **Por que um GitHub App e não um PAT (Personal Access Token):**
   - **Token curto:** o `create-github-app-token` troca a chave privada por um *installation token* que expira em ~1h e é revogado no fim do job. Um PAT vive meses (fine-grained) ou para sempre (classic).
   - **Escopo por repositório e por permissão:** o App só está instalado no `shortener-deploy` e só tem `Contents`. Mesmo que vaze o token de um run, ele não lê nem escreve no `shortener-api`.
-  - **Não está ligado a uma pessoa:** o commit aparece como `shortener-deployer-<usuario>[bot]`. Se você sair da "empresa", nada quebra; num PAT, o deploy morre junto com a sua conta.
+  - **Não está ligado a uma pessoa:** o commit aparece como `<org>-deployer[bot]`. Se você sair da "empresa", nada quebra; num PAT, o deploy morre junto com a sua conta.
   - **Dá para dar bypass só para ele** no ruleset (Tarefa 8.2).
 - **Por que não uma deploy key:** ela também funciona (SSH, escrita em um repo, existe até `actor_type: DeployKey` no ruleset). Mas é uma credencial **de longa duração** que nunca expira, não fala com a API do GitHub (o `promote.yml` e o `gh api` precisariam de outra credencial) e não tem identidade: o commit fica no nome de quem você configurar no `git config`. Com o App, uma chave cobre os 3 repos de origem com tokens curtos.
 
-- [ ] **Passo 1: crie o App pela UI.** GitHub → foto do perfil → **Settings** → **Developer settings** → **GitHub Apps** → **New GitHub App**:
-  - **GitHub App name:** `shortener-deployer-<usuario>` (o nome é global no GitHub; por isso o sufixo).
-  - **Homepage URL:** `https://github.com/<usuario>/shortener-deploy`.
+- [ ] **Passo 1: crie o App pela UI, na org.** `https://github.com/organizations/<org>/settings/apps` (Settings da org → **Developer settings** → **GitHub Apps**) → **New GitHub App**. Criado na org, o App pertence à "empresa", não ao seu usuário:
+  - **GitHub App name:** `<org>-deployer` (o nome é global no GitHub; por isso o prefixo com a org).
+  - **Homepage URL:** `https://github.com/<org>/shortener-deploy`.
   - **Webhook:** desmarque **Active**. O App não recebe eventos; ele só é usado para gerar tokens.
   - **Permissions** → **Repository permissions** → **Contents: Read and write**. **Metadata: Read-only** entra sozinho (é obrigatório). Nada mais.
-  - **Where can this GitHub App be installed?** → **Only on this account**.
+  - **Where can this GitHub App be installed?** → **Only on this account** (a conta aqui é a org).
   - **Create GitHub App.**
 - [ ] **Passo 2: anote os IDs.** Na página do App (seção *About*): **App ID** (um número, ex.: `1234567`) e **Client ID** (começa com `Iv23...`).
 - [ ] **Passo 3: gere a chave privada.** Mesma página → **Private keys** → **Generate a private key**. O navegador baixa um `.pem`.
-- [ ] **Passo 4: instale o App só no `shortener-deploy`.** Menu lateral do App → **Install App** → sua conta → **Only select repositories** → `shortener-deploy` → **Install**.
-- [ ] **Passo 5: guarde ID e chave nos 3 repos**
+- [ ] **Passo 4: instale o App só no `shortener-deploy`.** Menu lateral do App → **Install App** → `<org>` → **Only select repositories** → `shortener-deploy` → **Install**.
+- [ ] **Passo 5: guarde ID e chave uma vez, na org, liberados para os 3 repos**
 
 ```bash
 APP_ID=<App ID>                 # número
 CLIENT_ID=<Client ID>           # Iv23...
-PEM=~/Downloads/shortener-deployer-<usuario>.<data>.private-key.pem
+PEM=~/Downloads/<org>-deployer.<data>.private-key.pem
+REPOS=shortener-api,shortener-web,shortener-deploy
 
-for repo in shortener-api shortener-web shortener-deploy; do
-  gh variable set DEPLOYER_APP_ID    --repo <usuario>/$repo --body "$APP_ID"
-  gh variable set DEPLOYER_CLIENT_ID --repo <usuario>/$repo --body "$CLIENT_ID"
-  gh secret   set DEPLOYER_PRIVATE_KEY --repo <usuario>/$repo < "$PEM"
-done
+gh variable set DEPLOYER_APP_ID      --org <org> --visibility selected --repos "$REPOS" --body "$APP_ID"
+gh variable set DEPLOYER_CLIENT_ID   --org <org> --visibility selected --repos "$REPOS" --body "$CLIENT_ID"
+gh secret   set DEPLOYER_PRIVATE_KEY --org <org> --visibility selected --repos "$REPOS" < "$PEM"
 
-gh variable list --repo <usuario>/shortener-api   # DEPLOYER_APP_ID e DEPLOYER_CLIENT_ID
-gh secret list   --repo <usuario>/shortener-api   # DEPLOYER_PRIVATE_KEY (o valor nunca é mostrado)
+gh variable list --org <org>   # DEPLOYER_APP_ID e DEPLOYER_CLIENT_ID, visibilidade SELECTED
+gh secret list   --org <org>   # DEPLOYER_PRIVATE_KEY (o valor nunca é mostrado)
+gh api repos/<org>/shortener-api/actions/organization-secrets --jq '.secrets[].name'   # o repo enxerga a chave
 ```
+
+Por que na org: a chave existe num lugar só. Para trocá-la (rotação ou vazamento), você atualiza um secret, não três. Os workflows leem `vars.DEPLOYER_CLIENT_ID` e `secrets.DEPLOYER_PRIVATE_KEY` do mesmo jeito, venham do repo ou da org.
+
+Duas pegadinhas:
+- **Sem `--visibility`, o `gh` cria com `private`**: o valor só fica visível para repos *privados*, e os 3 são públicos. O workflow receberia valores vazios e o passo do `create-github-app-token` falharia.
+- **No plano Free, secrets e variables da org só chegam a repos públicos.** Num repo privado, seria preciso o plano Team ou guardar no próprio repo.
 
 Por que duas variáveis:
 - `DEPLOYER_CLIENT_ID` é o que o `actions/create-github-app-token@v3` usa. Desde a v3.1, o input `app-id` está *deprecated* em favor de `client-id`, mas continua aceito.
@@ -89,12 +95,12 @@ rm -P "$PEM"        # -P sobrescreve antes de apagar (macOS)
 - [ ] **Passo 7: descubra o id do usuário-bot** (o commit precisa dele para aparecer com o avatar do App):
 
 ```bash
-gh api "/users/shortener-deployer-<usuario>[bot]" --jq .id    # ex.: 987654321
+gh api "/users/<org>-deployer[bot]" --jq .id    # ex.: 987654321
 ```
 
-O e-mail do bot é `<esse id>+shortener-deployer-<usuario>[bot]@users.noreply.github.com`. Os workflows calculam isso sozinhos; o passo é só para você entender de onde vem.
+O e-mail do bot é `<esse id>+<org>-deployer[bot]@users.noreply.github.com`. Os workflows calculam isso sozinhos; o passo é só para você entender de onde vem.
 
-**Pronto quando:** o App existe, está instalado só no `shortener-deploy`, e os 3 repos têm `DEPLOYER_APP_ID`, `DEPLOYER_CLIENT_ID` e `DEPLOYER_PRIVATE_KEY`.
+**Pronto quando:** o App existe, está instalado só no `shortener-deploy`, e a org tem `DEPLOYER_APP_ID`, `DEPLOYER_CLIENT_ID` e `DEPLOYER_PRIVATE_KEY`, liberados para os 3 repos.
 
 ---
 
@@ -110,9 +116,9 @@ O e-mail do bot é `<esse id>+shortener-deployer-<usuario>[bot]@users.noreply.gi
 - [ ] **Passo 1: crie o ruleset pela API**
 
 ```bash
-APP_ID=$(gh variable get DEPLOYER_APP_ID --repo <usuario>/shortener-deploy)
+APP_ID=$(gh variable get DEPLOYER_APP_ID --org <org>)
 
-gh api --method POST /repos/<usuario>/shortener-deploy/rulesets --input - <<EOF
+gh api --method POST /repos/<org>/shortener-deploy/rulesets --input - <<EOF
 {
   "name": "main protegida (bypass: deployer)",
   "target": "branch",
@@ -157,8 +163,8 @@ O `actor_id` de um `Integration` é o **App ID** (número), não o Client ID.
 - [ ] **Passo 2: confira**
 
 ```bash
-gh api /repos/<usuario>/shortener-deploy/rulesets --jq '.[] | {id, name, enforcement}'
-gh api /repos/<usuario>/shortener-deploy/rules/branches/main --jq '.[].type'
+gh api /repos/<org>/shortener-deploy/rulesets --jq '.[] | {id, name, enforcement}'
+gh api /repos/<org>/shortener-deploy/rules/branches/main --jq '.[].type'
 # deletion, non_fast_forward, pull_request, required_status_checks
 ```
 
@@ -330,8 +336,8 @@ As únicas diferenças entre os dois jobs são o grupo de `concurrency`, o nome 
 - [ ] **Passo 3: leve cada mudança por PR** (branch → PR → CI verde → merge), em cada um dos dois repos. O próprio merge dispara o Release, que já usa o job novo.
 
 ```bash
-gh run watch --repo <usuario>/shortener-api       # ci → image → deploy-staging
-gh run watch --repo <usuario>/shortener-web
+gh run watch --repo <org>/shortener-api       # ci → image → deploy-staging
+gh run watch --repo <org>/shortener-web
 ```
 
 - [ ] **Passo 4: confira os commits no `shortener-deploy`**
@@ -339,8 +345,8 @@ gh run watch --repo <usuario>/shortener-web
 ```bash
 cd ~/Documents/projects/shortener-deploy && git switch main && git pull
 git log --format='%h %an <%ae> %s' -4
-# a1b2c3d shortener-deployer-<usuario>[bot] <987654321+shortener-deployer-<usuario>[bot]@users.noreply.github.com> deploy(staging): web sha-bbb2222
-# d4e5f6a shortener-deployer-<usuario>[bot] <...> deploy(staging): api sha-aaa1111
+# a1b2c3d <org>-deployer[bot] <987654321+<org>-deployer[bot]@users.noreply.github.com> deploy(staging): web sha-bbb2222
+# d4e5f6a <org>-deployer[bot] <...> deploy(staging): api sha-aaa1111
 ```
 
 No GitHub, o commit aparece com o avatar do App. Se aparecer um usuário genérico sem avatar, o e-mail está errado (provavelmente você usou o App ID no lugar do id do usuário-bot).
@@ -371,7 +377,7 @@ curl -s https://api.shortener-staging.fabricioroglio.com/healthz   # {"status":"
 - [ ] **Passo 1: crie o environment.** `shortener-deploy` → **Settings** → **Environments** → **New environment** → `production`:
   - **Required reviewers:** você. Deixe *Prevent self-review* desmarcado (você é o único revisor).
   - **Deployment branches and tags:** *Selected branches and tags* → `main`.
-  - (Opcional, mais rígido) mova `DEPLOYER_PRIVATE_KEY` do nível do repo para *Environment secrets* de `production`. Assim, só jobs aprovados conseguem gerar token neste repo.
+  - (Opcional, mais rígido) tire o `shortener-deploy` da lista do secret da org (`gh secret set DEPLOYER_PRIVATE_KEY --org <org> --visibility selected --repos shortener-api,shortener-web < "$PEM"`) e crie a chave como *Environment secret* de `production`. Assim, só jobs aprovados conseguem gerar token neste repo.
 
 - [ ] **Passo 2: crie** `.github/workflows/promote.yml`
 
@@ -495,7 +501,7 @@ jobs:
 - [ ] **Passo 4: promova api e web uma vez cada, antes de subir prod.** Prod ainda está desligado, então só o Git muda. Assim, o primeiro sync de prod já usa tags que existem.
 
 ```bash
-R=<usuario>/shortener-deploy
+R=<org>/shortener-deploy
 gh workflow run promote.yml --repo $R -f app=api
 gh run watch --repo $R        # validate ✓ → promote "Waiting" → aprove em Actions ▸ run ▸ "Review deployments" ▸ production ▸ Approve
 gh workflow run promote.yml --repo $R -f app=web
@@ -694,7 +700,7 @@ Se o k6 acusar erros:
 ```bash
 PROD_CODE=<code criado em prod na Tarefa 8.5>
 k6 run -e BASE_URL=https://shortener.fabricioroglio.com -e CODE=$PROD_CODE -e DURATION=15m load/redirect.js &
-gh workflow run promote.yml --repo <usuario>/shortener-deploy -f app=api     # aprove na UI
+gh workflow run promote.yml --repo <org>/shortener-deploy -f app=api     # aprove na UI
 kubectl argo rollouts --context shortener-prod -n shortener get rollout api --watch
 ```
 
@@ -838,7 +844,7 @@ kubectl --context shortener-staging -n shortener get svc web-active -o jsonpath=
 - [ ] **Passo 5: promova o web para prod**
 
 ```bash
-gh workflow run promote.yml --repo <usuario>/shortener-deploy -f app=web     # aprove na UI
+gh workflow run promote.yml --repo <org>/shortener-deploy -f app=web     # aprove na UI
 kubectl argo rollouts --context shortener-prod -n shortener get rollout web --watch
 ```
 
@@ -894,7 +900,7 @@ kubectl argo rollouts --context shortener-prod -n shortener get rollout api --wa
 
 O header some quando chega a 100%.
 
-**Alternativa sem PR:** `gh workflow run promote.yml --repo <usuario>/shortener-deploy -f app=api -f tag=sha-ANTIGA`. Ela passa pelo `validate` (a tag antiga passou por staging) e pela sua aprovação, e o bot commita com bypass. Em incidente, é o caminho mais rápido com trilha de auditoria.
+**Alternativa sem PR:** `gh workflow run promote.yml --repo <org>/shortener-deploy -f app=api -f tag=sha-ANTIGA`. Ela passa pelo `validate` (a tag antiga passou por staging) e pela sua aprovação, e o bot commita com bypass. Em incidente, é o caminho mais rápido com trilha de auditoria.
 
 - [ ] **Passo 3: botão de emergência (opcional, em staging)**
   - Dispare um canary qualquer (por exemplo, um merge trivial no `shortener-api`) e, com o Rollout em `Paused` a 10%, rode:

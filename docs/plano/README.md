@@ -100,7 +100,7 @@ Staging é igual, na conta staging, com a VPC `10.10.0.0/16` e hosts com o sufix
 shortener-api ou shortener-web
 PR ──▶ CI (lint, tipos, testes, build) ──▶ merge na main
                                               │
-                Release: ghcr.io/<usuario>/shortener-<app>:sha-abc1234
+                Release: ghcr.io/<org>/shortener-<app>:sha-abc1234
                                               │
          GitHub App: commit "deploy(staging): <app> sha-abc1234" no shortener-deploy
                                               │
@@ -165,7 +165,7 @@ Valem para todas as tarefas.
 - **Versões iguais em dev e na AWS:** Postgres 17, Valkey 8, Kafka 3.9.
 - **Região:** `us-east-1`, AZs `us-east-1a` e `us-east-1b`. Uma SCP bloqueia as demais regiões.
 - **Contas e profiles AWS:** `shortener-mgmt`, `shortener-shared`, `shortener-staging` e `shortener-prod`, todos pela sso-session `shortener`. Todo provider `aws` declara `allowed_account_ids`.
-- **Imagens:** `ghcr.io/<usuario>/shortener-api:sha-<7 chars>` e `ghcr.io/<usuario>/shortener-web:sha-<7 chars>`, apenas `linux/arm64`.
+- **Imagens:** `ghcr.io/<org>/shortener-api:sha-<7 chars>` e `ghcr.io/<org>/shortener-web:sha-<7 chars>`, apenas `linux/arm64`.
 - **Tags obrigatórias** em todo recurso AWS: `Project=shortener`, `Environment=<staging|prod|shared|management>`, `ManagedBy=terraform`.
 - **Nomes:**
   - Clusters e contexts do kubectl: `shortener-staging` e `shortener-prod`

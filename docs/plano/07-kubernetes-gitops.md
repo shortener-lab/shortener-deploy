@@ -12,7 +12,7 @@
 **Pré-requisitos:**
 - Fase 5: certificado ACM (3 hosts) e Cognito da conta `staging` criados pelo bootstrap.
 - Fase 6: `scripts/up.sh staging` funcionando; o Terraform cria o namespace `shortener`, o ConfigMap `shortener-infra`, o Secret `shortener-secrets`, o ConfigMap `shortener-oidc`, o Argo Rollouts (namespace `argo-rollouts`, com permissão de CloudWatch via Pod Identity) e as Applications `shortener-api` e `shortener-web`, que apontam para `apps/<app>/overlays/<env>` e até agora davam erro de path.
-- Imagens publicadas pelo Release da Fase 4: `ghcr.io/<usuario>/shortener-api:sha-<7>` e `ghcr.io/<usuario>/shortener-web:sha-<7>`, com os pacotes públicos.
+- Imagens publicadas pelo Release da Fase 4: `ghcr.io/<org>/shortener-api:sha-<7>` e `ghcr.io/<org>/shortener-web:sha-<7>`, com os pacotes públicos.
 - Plugin do Argo Rollouts para o kubectl:
 
 ```bash
@@ -187,7 +187,7 @@ spec:
             matchLabels: { app.kubernetes.io/component: api }
       containers:
         - name: api
-          image: shortener-api            # nome lógico: o Kustomize troca por ghcr.io/<usuario>/shortener-api:sha-<7>
+          image: shortener-api            # nome lógico: o Kustomize troca por ghcr.io/<org>/shortener-api:sha-<7>
           command: ["node", "dist/api.js"]
           ports:
             - { name: http, containerPort: 3000 }
@@ -547,7 +547,7 @@ spec:
             matchLabels: { app.kubernetes.io/component: web }
       containers:
         - name: web
-          image: shortener-web          # nome lógico: o Kustomize troca por ghcr.io/<usuario>/shortener-web:sha-<7>
+          image: shortener-web          # nome lógico: o Kustomize troca por ghcr.io/<org>/shortener-web:sha-<7>
           ports:
             - { name: http, containerPort: 8080 }
           envFrom:
@@ -753,8 +753,8 @@ aws sso login --sso-session shortener        # o state fica na conta shared; o c
 terraform -chdir=infra/bootstrap/staging output -raw certificate_arn; echo   # <ARN do certificado de staging>
 terraform -chdir=infra/bootstrap/prod output -raw certificate_arn; echo      # <ARN do certificado de prod>
 
-gh run list --repo <usuario>/shortener-api --workflow Release --limit 1
-gh run list --repo <usuario>/shortener-web --workflow Release --limit 1
+gh run list --repo <org>/shortener-api --workflow Release --limit 1
+gh run list --repo <org>/shortener-web --workflow Release --limit 1
 # a tag é "sha-" + os 7 primeiros caracteres do commit; confira em GitHub → Packages
 ```
 
@@ -771,7 +771,7 @@ resources:
 
 images:
   - name: shortener-api
-    newName: ghcr.io/<usuario>/shortener-api
+    newName: ghcr.io/<org>/shortener-api
     newTag: sha-<7>            # o CD atualiza esta linha automaticamente (Fase 8)
 
 configMapGenerator:
@@ -822,7 +822,7 @@ resources:
 
 images:
   - name: shortener-api
-    newName: ghcr.io/<usuario>/shortener-api
+    newName: ghcr.io/<org>/shortener-api
     newTag: sha-<7>            # só muda pelo workflow "Promote" (Fase 8)
 
 configMapGenerator:
@@ -865,7 +865,7 @@ resources:
 
 images:
   - name: shortener-web
-    newName: ghcr.io/<usuario>/shortener-web
+    newName: ghcr.io/<org>/shortener-web
     newTag: sha-<7>            # o CD atualiza esta linha automaticamente (Fase 8)
 
 configMapGenerator:
@@ -900,7 +900,7 @@ resources:
 
 images:
   - name: shortener-web
-    newName: ghcr.io/<usuario>/shortener-web
+    newName: ghcr.io/<org>/shortener-web
     newTag: sha-<7>            # só muda pelo workflow "Promote" (Fase 8)
 
 configMapGenerator:
@@ -941,7 +941,7 @@ kubectl kustomize apps/web/overlays/staging | yq 'select(.kind == "Rollout") | .
 
 # 2) a imagem foi trocada no Rollout, no worker e no Job
 kubectl kustomize apps/api/overlays/staging | grep 'image:'
-#    esperado: 3× ghcr.io/<usuario>/shortener-api:sha-<7>
+#    esperado: 3× ghcr.io/<org>/shortener-api:sha-<7>
 
 # 3) os dois Ingresses têm o mesmo group.name e o mesmo certificate-arn
 for app in api web; do kubectl kustomize apps/$app/overlays/staging | yq 'select(.kind == "Ingress") | .metadata.annotations'; done

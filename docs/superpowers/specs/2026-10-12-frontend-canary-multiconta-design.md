@@ -32,11 +32,11 @@ Pastas irmãs no Mac. A pasta atual (`~/Documents/projects/teste`) **é** o `sho
 
 | Repo | Conteúdo | Artefato publicado |
 |---|---|---|
-| `shortener-api` | `src/` (api, worker, setup), `migrations/`, testes, `Dockerfile`, `docker-compose.yml` (infra local + IdP mock), `.github/workflows/{ci,release}.yml` | `ghcr.io/<usuario>/shortener-api:sha-<7>` |
-| `shortener-web` | App Vite + React + TS, testes, `nginx/`, `Dockerfile`, `.github/workflows/{ci,release}.yml` | `ghcr.io/<usuario>/shortener-web:sha-<7>` |
+| `shortener-api` | `src/` (api, worker, setup), `migrations/`, testes, `Dockerfile`, `docker-compose.yml` (infra local + IdP mock), `.github/workflows/{ci,release}.yml` | `ghcr.io/<org>/shortener-api:sha-<7>` |
+| `shortener-web` | App Vite + React + TS, testes, `nginx/`, `Dockerfile`, `.github/workflows/{ci,release}.yml` | `ghcr.io/<org>/shortener-web:sha-<7>` |
 | `shortener-deploy` | `apps/{api,web}/{base,overlays/{staging,prod}}` (Kustomize), `infra/` (Terraform), `scripts/`, `load/` (k6), `docs/plano/` e `docs/superpowers/`, `.github/workflows/{ci,promote}.yml` | estado desejado de cada ambiente |
 
-`<usuario>` = usuário do GitHub em minúsculas. Os 3 repos são públicos (ArgoCD e cluster leem Git e imagens sem credencial; segredos nunca entram no Git).
+`<org>` = organização do GitHub que é dona dos 3 repos (`shortener-lab`), em minúsculas. Os 3 repos são públicos (ArgoCD e cluster leem Git e imagens sem credencial; segredos nunca entram no Git).
 
 O `package.json` do `shortener-api` passa de `name: shortener` para `name: shortener-api` (Fase 4).
 
@@ -174,8 +174,8 @@ apps/
 
 - **`rollout-transform.yaml`:** config oficial do Argo Rollouts para o Kustomize, referenciada em `configurations:`. Sem ela, o Kustomize não troca o nome com hash dos ConfigMaps gerados dentro do `Rollout`.
 - **Namespace:** `shortener`, compartilhado pelas duas apps.
-- **Applications do ArgoCD:** `shortener-api` (path `apps/api/overlays/<env>`) e `shortener-web` (path `apps/web/overlays/<env>`), repo `https://github.com/<usuario>/shortener-deploy.git`, revisão `main`, `automated: {prune, selfHeal}`.
-- **Imagens no Kustomize:** nome lógico `shortener-api` → `ghcr.io/<usuario>/shortener-api`; `shortener-web` → `ghcr.io/<usuario>/shortener-web`. O seletor do `yq` passa a ser `select(.name == "shortener-api")` ou `select(.name == "shortener-web")`.
+- **Applications do ArgoCD:** `shortener-api` (path `apps/api/overlays/<env>`) e `shortener-web` (path `apps/web/overlays/<env>`), repo `https://github.com/<org>/shortener-deploy.git`, revisão `main`, `automated: {prune, selfHeal}`.
+- **Imagens no Kustomize:** nome lógico `shortener-api` → `ghcr.io/<org>/shortener-api`; `shortener-web` → `ghcr.io/<org>/shortener-web`. O seletor do `yq` passa a ser `select(.name == "shortener-api")` ou `select(.name == "shortener-web")`.
 - **Config dos pods:**
 
 | Origem | Nome | Conteúdo | Quem escreve | Usado por |
@@ -224,7 +224,7 @@ infra/
 - **`shortener-api` e `shortener-web`:**
   - `ci.yml` em PR (lint, typecheck, testes e build da imagem ARM64).
   - `release.yml` no push da `main`: CI → imagem `sha-<7>` no GHCR → job `deploy-staging`, que gera um token do GitHub App, faz checkout do `shortener-deploy`, roda `yq` no overlay de staging da app, commita `deploy(staging): <app> sha-<7>` e faz push com retry.
-- **GitHub App `shortener-deployer-<usuario>`:** permissão `Contents: Read and write`, instalada **só** no `shortener-deploy`. `DEPLOYER_CLIENT_ID` e `DEPLOYER_APP_ID` (variables; o client id gera o token e o app id numérico entra no bypass do ruleset) e `DEPLOYER_PRIVATE_KEY` (secret) nos 3 repos. Token via `actions/create-github-app-token@v3` com `client-id`.
+- **GitHub App `<org>-deployer`** (registrado na org): permissão `Contents: Read and write`, instalada **só** no `shortener-deploy`. `DEPLOYER_CLIENT_ID` e `DEPLOYER_APP_ID` (variables; o client id gera o token e o app id numérico entra no bypass do ruleset) e `DEPLOYER_PRIVATE_KEY` (secret) definidos na org, com visibilidade `selected` para os 3 repos. Token via `actions/create-github-app-token@v3` com `client-id`.
 - **`shortener-deploy`:**
   - `ci.yml` em PR: `terraform fmt -check` e `validate` em todas as raízes; `kustomize build` + `kubeconform` (com schemas de CRD do Argo Rollouts via catálogo de CRDs).
   - `promote.yml` (`workflow_dispatch`, inputs `app` ∈ {`api`, `web`} e `tag` opcional): environment `production` com required reviewer, valida a tag (`^sha-[0-9a-f]{7}$`), confere se a imagem existe, commita `deploy(prod): <app> sha-<7>` usando o token do App.
