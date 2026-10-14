@@ -6,7 +6,7 @@ Severidade:
 - **Importante:** o usuário sente o efeito, ou ele vira problema de segurança ou de operação em produção.
 - **Menor:** caso de borda, atrito de dev ou endurecimento que vale fazer.
 
-Os itens A1–A8 vieram da Fase 2; os A9–A16, da Fase 3 (revisão do `shortener-web` e Tarefa 3.11).
+Os itens A1–A8 vieram da Fase 2; os A9–A16, da Fase 3 (revisão do `shortener-web` e Tarefa 3.11). Os A17–A18 e o C7 vieram da leitura guiada do código do Kafka.
 
 Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva o teste que reproduz o problema, veja-o falhar, corrija e veja-o passar.
 
@@ -107,6 +107,16 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
   - *single-flight*: uma requisição recalcula, e as outras esperam por ela. Pode ser um lock curto no Valkey com `SET NX PX`.
   - Ou *stale-while-revalidate*: entregar o valor um pouco velho enquanto um único processo recalcula.
 
+### A17. A tabela `processed_events` cresce para sempre. *Menor (operação)*
+- **Onde:** `shortener-api/migrations/001_init.sql` e `src/analytics/processClick.ts`.
+- **Como quebra:** cada clique grava uma linha (UUID de 16 bytes, timestamp e índice da chave primária: algo como 50–60 bytes por linha). Nada apaga essas linhas. Com 1 milhão de cliques por dia, isso dá dezenas de GB por ano, e o índice fica maior que a memória do banco.
+- **Correção sugerida:** um job diário (CronJob no Kubernetes ou `pg_cron`) que faz `DELETE FROM processed_events WHERE processed_at < now() - interval '14 days'`. A janela só precisa ser maior que o tempo máximo em que uma mensagem pode ser reentregue: a retenção do tópico (7 dias) mais uma folga. Num volume grande, particionar a tabela por dia e apagar partições inteiras.
+
+### A18. Nenhum teste garante que uma falha no envio para a DLQ segura o offset. *Menor (cobertura de teste)*
+- **Onde:** `shortener-api/test/unit/handleMessage.test.ts`, que cobre o envio para a DLQ só com uma DLQ que sempre aceita.
+- **Como quebra:** hoje o `await dlq.send(...)` faz o `handleMessage` lançar quando a DLQ recusa. O `eachMessage` falha, e a mensagem não é dada como lida. O comportamento está certo, mas nada o protege. Se alguém trocar o `await` por `.catch(log)`, para "não travar o worker", a mensagem envenenada passa a sumir em silêncio: o offset anda sem a mensagem estar em lugar nenhum. E os testes continuam verdes.
+- **Correção sugerida:** um teste "DLQ recusa → `handleMessage` rejeita" com uma `dlq` cujo `send` lança erro.
+
 ---
 
 ## Corrigidos
@@ -141,6 +151,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Onde:** `shortener-web/src/auth/RequireAuth.tsx`.
 - **Como quebrava:** o notebook acorda sem rede, o refresh do token falha uma vez, e o `react-oidc-context` marca `error`, mas mantém o usuário logado. O `RequireAuth` trocava o app inteiro por "Falha no login", sem "Sair", sem botão e sem redirect, até um F5 manual.
 - **Correção:** com usuário ainda logado, o conteúdo continua; se o token vencer de fato, o 401 da api leva ao login. Sem usuário, o erro ganha o botão "Entrar de novo". Commit `1c6324f`, com teste.
+
+### C7. A api não subia se o Kafka estivesse fora na hora da partida. *Importante (disponibilidade)*
+- **Onde:** `shortener-api/src/api.ts` (o `await producer.connect()` antes do `app.listen`).
+- **Como quebrava:** com o broker inacessível, o `connect()` ficava pendurado e rejeitava depois de **82 s** (medido: `broker transport failure`), derrubando o processo. Um pod novo durante uma pane do Kafka (scale-up, troca de nó, restart) entrava em CrashLoop, e o redirect caía por causa das estatísticas.
+- **Correção:** o producer conecta em segundo plano (`connectInBackground` em `src/events/kafka.ts`), e a api abre a porta na hora. A cada falha, tenta de novo com um producer **novo**: medimos que um producer cujo `connect()` falhou recusa outro ("*Connect has already been called elsewhere*"). Enquanto não conecta, o `send()` é recusado e o publisher só loga: esses cliques se perdem, mas o redirect funciona. Commit `db05b3f`, com teste unitário e um teste de integração que sobe o `src/api.ts` com `KAFKA_BROKERS=localhost:1` e confere o 302.
 
 ---
 
