@@ -157,6 +157,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Como quebrava:** com o broker inacessível, o `connect()` ficava pendurado e rejeitava depois de **82 s** (medido: `broker transport failure`), derrubando o processo. Um pod novo durante uma pane do Kafka (scale-up, troca de nó, restart) entrava em CrashLoop, e o redirect caía por causa das estatísticas.
 - **Correção:** o producer conecta em segundo plano (`connectInBackground` em `src/events/kafka.ts`), e a api abre a porta na hora. A cada falha, tenta de novo com um producer **novo**: medimos que um producer cujo `connect()` falhou recusa outro ("*Connect has already been called elsewhere*"). Enquanto não conecta, o `send()` é recusado e o publisher só loga: esses cliques se perdem, mas o redirect funciona. Commit `db05b3f`, com teste unitário e um teste de integração que sobe o `src/api.ts` com `KAFKA_BROKERS=localhost:1` e confere o 302.
 
+### C8. A cota de contas só aparecia depois que o apply quebrava. *Defeito do plano (Fase 5)*
+- **Onde:** `docs/plano/05-aws-organizacao-bootstrap.md`, Tarefa 5.3, Passo 8.
+- **Como quebrava:** a organização nova nasceu com a cota "Maximum number of accounts" em **2** (default 10). O `terraform apply` criou a `shortener-prod` e falhou nas outras duas com `ConstraintViolationException: You have exceeded the allowed number of AWS accounts`. O plano citava outro código de erro (`ACCOUNT_NUMBER_LIMIT_EXCEEDED`) e mandava pedir aumento só depois da falha. Pedir 5 pela API também falha: ela só aceita valores acima do default ("*greater than the default quota value of 10.0*").
+- **Correção:** novo Passo 8 na Tarefa 5.2 confere a cota e pede 11 antes de qualquer `apply`. O texto da Tarefa 5.3 traz a mensagem real.
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)

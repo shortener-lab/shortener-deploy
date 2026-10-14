@@ -117,7 +117,24 @@ aws organizations list-roots --profile shortener-mgmt \
 
 Anote o **Account ID** (vira `<MGMT_ACCOUNT_ID>`), o **ID da organização** (`o-...`) e a lista de *service principals*: os três entram na Tarefa 5.3.
 
-**Pronto quando:** o `get-caller-identity` funciona com o profile `shortener-mgmt` e a organização aparece com `featureSet = ALL`.
+- [ ] **Passo 8: confira a cota de contas e peça aumento já**
+
+Organizações novas nascem com a cota de contas **travada abaixo do default**. Medido em out/2026: valor aplicado **2** (a management conta como uma), default 10. A Tarefa 5.3 precisa de 4. Sem o aumento, o `apply` cria uma conta e para no meio.
+
+```bash
+aws service-quotas get-service-quota --profile shortener-mgmt --region us-east-1 \
+  --service-code organizations --quota-code L-E619E033 --query 'Quota.Value'   # "Maximum number of accounts"
+# Se for menor que 4: a API só aceita pedido ACIMA do default (10). Pedir 5 dá
+# "You must provide a quota value greater than the default quota value of 10.0".
+aws service-quotas request-service-quota-increase --profile shortener-mgmt --region us-east-1 \
+  --service-code organizations --quota-code L-E619E033 --desired-value 11
+aws service-quotas list-requested-service-quota-change-history --profile shortener-mgmt --region us-east-1 \
+  --service-code organizations --query 'RequestedQuotas[].{status:Status,pedido:DesiredValue,caso:CaseId}'
+```
+
+O pedido vira um caso de suporte e pode levar de horas a dias. Enquanto espera, dá para escrever o Terraform da Tarefa 5.3 e fazer a Tarefa 5.5.
+
+**Pronto quando:** o `get-caller-identity` funciona com o profile `shortener-mgmt`, a organização aparece com `featureSet = ALL` e a cota de contas é 4 ou mais (ou o pedido está aberto).
 
 ---
 
@@ -506,7 +523,7 @@ terraform apply     # criar as contas leva alguns minutos
 terraform output
 ```
 
-Se o apply falhar na criação de uma conta com `CONCURRENT_ACCOUNT_MODIFICATION` ou `TooManyRequestsException`, rode `terraform apply` de novo: a API cria contas de forma assíncrona e às vezes recusa pedidos simultâneos. Se aparecer `ACCOUNT_NUMBER_LIMIT_EXCEEDED`, organizações novas às vezes têm uma cota baixa de contas: peça aumento em **Service Quotas** → *AWS Organizations* → "Default maximum number of accounts".
+Se o apply falhar na criação de uma conta com `CONCURRENT_ACCOUNT_MODIFICATION` ou `TooManyRequestsException`, rode `terraform apply` de novo: a API cria contas de forma assíncrona e às vezes recusa pedidos simultâneos. Se aparecer `ConstraintViolationException: You have exceeded the allowed number of AWS accounts`, a cota do Passo 8 da Tarefa 5.2 ainda não subiu. O state fica consistente: o que foi criado continua lá, e um `terraform apply` depois da aprovação cria só o que falta.
 
 Anote os IDs do `account_ids`: eles viram `<SHARED_ACCOUNT_ID>`, `<STAGING_ACCOUNT_ID>` e `<PROD_ACCOUNT_ID>` daqui em diante.
 

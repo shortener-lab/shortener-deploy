@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyRootUserExceptCentralizedSessions",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": ["arn:aws:iam::*:root"]
+        },
+        "Null": {
+          "aws:AssumedRoot": "true"
+        }
+      }
+    }
+  ]
+}
