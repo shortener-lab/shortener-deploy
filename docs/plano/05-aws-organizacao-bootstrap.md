@@ -614,17 +614,31 @@ aws ec2 describe-vpcs --profile shortener-staging --region us-east-1 --query 'Vp
 
 **Conceitos:** token com o **menor privilégio possível**, limitado a uma única zona. Nesta fase ele valida os certificados ACM das contas staging e prod (3 hosts por conta); na Fase 6, o external-dns de cada cluster o usa para criar os registros dos 3 hosts.
 
-- [ ] **Passo 1: crie o token.** Cloudflare → **My Profile** → **API Tokens** → **Create Token** → **Custom token**:
+- [x] **Passo 1: crie o token.** Cloudflare → **My Profile** → **API Tokens** → **Create Token** → **Custom token**:
   - Nome: `shortener-dns`
   - Permissões: **Zone → DNS → Edit** e **Zone → Zone → Read** (o external-dns precisa listar a zona)
   - Zone Resources: **Include → Specific zone → fabricioroglio.com**
-- [ ] **Passo 2: guarde o token** num gerenciador de senhas (1Password, Bitwarden etc.) e **nunca** no repositório.
-- [ ] **Passo 3: anote o Zone ID.** Cloudflare → `fabricioroglio.com` → página **Overview** → coluna da direita, **Zone ID**. Ele não é secreto e vira `<ZONE_ID>`.
-- [ ] **Passo 4: exporte para a sessão atual**
+- [x] **Passo 2: guarde o token no Keychain do macOS** (um gerenciador de senhas que já vem no sistema), e **nunca** no repositório nem num chat:
 
 ```bash
-export CLOUDFLARE_API_TOKEN='...'                            # usado pelo provider da Cloudflare (bootstrap)
-export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"   # usado pelo Terraform da plataforma (external-dns)
+security add-generic-password -a "$USER" -s shortener-cloudflare-token -w
+# pede o token duas vezes, sem eco: ele não passa pelo histórico do shell
+```
+
+- [x] **Passo 3: descubra o Zone ID pela API.** A permissão *Zone Read* do próprio token basta. O Zone ID não é secreto e vai para o `terraform.tfvars` de staging e prod.
+
+```bash
+CF_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)
+curl -s -H "Authorization: Bearer $CF_TOKEN" https://api.cloudflare.com/client/v4/zones \
+  | jq '.result[] | {name, id}'      # privilégio mínimo: só fabricioroglio.com aparece
+```
+
+- [x] **Passo 4: confira o que ele NÃO consegue.** Com o mesmo token, `GET /zones/<ZONE_ID>/settings`, `GET /zones/<ZONE_ID>/rulesets` e `GET /user` devem dar **403**; `GET /zones/<ZONE_ID>/dns_records` dá 200.
+- [x] **Passo 5: exporte para a sessão atual**
+
+```bash
+export CLOUDFLARE_API_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)  # provider da Cloudflare (bootstrap)
+export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"                                     # Terraform da plataforma (external-dns)
 ```
 
 Neste projeto, o mesmo token serve à validação dos certificados e ao external-dns dos dois ambientes. Em empresa, seriam tokens separados, um por uso e por ambiente.
@@ -1121,7 +1135,7 @@ Confira se os `.terraform.lock.hcl` das 4 raízes entraram no commit: eles **dev
 
 ```bash
 aws sso login --sso-session shortener          # um login (com MFA) vale para os 4 profiles por 8h
-export CLOUDFLARE_API_TOKEN='...'              # do gerenciador de senhas
+export CLOUDFLARE_API_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)  # do Keychain (Tarefa 5.5)
 export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
 ```
 
