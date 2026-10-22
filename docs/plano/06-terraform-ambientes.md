@@ -1073,7 +1073,7 @@ data "terraform_remote_state" "aws" {
   }
 }
 
-# Saídas do bootstrap PERMANENTE da conta de staging (Fase 5): Cognito e certificado.
+# Saídas do bootstrap PERMANENTE da conta deste ambiente (Fase 5): Cognito e certificado.
 data "terraform_remote_state" "bootstrap" {
   backend = "s3"
   config = {
@@ -1407,20 +1407,20 @@ scripts/down.sh staging
 
 O bootstrap da conta de prod (Fase 5) já existe; o que falta são as raízes efêmeras.
 
-- [ ] **Passo 1: copie as raízes**
+- [x] **Passo 1: copie as raízes**
 
 ```bash
 cp -r infra/envs/staging infra/envs/prod
 rm -rf infra/envs/prod/*/.terraform
 ```
 
-- [ ] **Passo 2: ajuste `infra/envs/prod/aws/main.tf`**
+- [x] **Passo 2: ajuste `infra/envs/prod/aws/main.tf`**
   - Backend: `key = "envs/prod/aws.tfstate"` (bucket e `profile = "shortener-shared"` continuam iguais)
   - Provider: `profile = "shortener-prod"` e `allowed_account_ids = ["<PROD_ACCOUNT_ID>"]`
   - `Environment = "prod"` no `default_tags`
   - No módulo: `environment = "prod"` e `vpc_cidr = "10.20.0.0/16"`
   - Nós: `node_min_size = 2`, `node_max_size = 4` e `node_desired_size = 2`
-- [ ] **Passo 3: ajuste `infra/envs/prod/platform/main.tf`**
+- [x] **Passo 3: ajuste `infra/envs/prod/platform/main.tf`**
   - Backend: `key = "envs/prod/platform.tfstate"`
   - Provider: `profile = "shortener-prod"` e `allowed_account_ids = ["<PROD_ACCOUNT_ID>"]`
   - `Environment = "prod"` no `default_tags`
@@ -1428,13 +1428,13 @@ rm -rf infra/envs/prod/*/.terraform
   - Remote state `bootstrap`: `key = "bootstrap/prod.tfstate"`
   - `local.k8s_exec`: `"--profile", "shortener-prod"`
   - No módulo: `environment = "prod"`
-- [ ] **Passo 4: confira que não sobrou nada de staging**
+- [x] **Passo 4: confira que não sobrou nada de staging**
 
 ```bash
 grep -rn "staging" infra/envs/prod      # deve voltar vazio
 ```
 
-- [ ] **Passo 5: valide sem aplicar**
+- [x] **Passo 5: valide sem aplicar**
 
 ```bash
 for d in infra/envs/prod/aws infra/envs/prod/platform; do
@@ -1442,7 +1442,7 @@ for d in infra/envs/prod/aws infra/envs/prod/platform; do
 done
 ```
 
-- [ ] **Passo 6: commit e PR** (`git add infra/envs/prod && git commit -m "infra: raízes de prod na conta de prod"`).
+- [x] **Passo 6: commit e PR** (`git add infra/envs/prod && git commit -m "infra: raízes de prod na conta de prod"`).
 
 **Pronto quando:** `validate` passa nas duas raízes de prod e o `grep` não acha `staging`.
 

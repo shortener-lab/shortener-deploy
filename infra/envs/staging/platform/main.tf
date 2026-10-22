@@ -37,7 +37,7 @@ data "terraform_remote_state" "aws" {
   }
 }
 
-# Saídas do bootstrap PERMANENTE da conta de staging (Fase 5): Cognito e certificado.
+# Saídas do bootstrap PERMANENTE da conta deste ambiente (Fase 5): Cognito e certificado.
 data "terraform_remote_state" "bootstrap" {
   backend = "s3"
   config = {
