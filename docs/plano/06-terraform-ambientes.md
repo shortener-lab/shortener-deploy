@@ -1397,7 +1397,7 @@ scripts/up.sh staging       # o "wait" do passo 3 vai expirar por enquanto (os o
 scripts/down.sh staging
 ```
 
-- [ ] **Passo 5: commit e PR.** `git add scripts infra && git commit -m "infra: scripts up/down/leftovers por conta de ambiente"`, push e `gh pr create --fill`.
+- [x] **Passo 5: commit e PR.** `git add scripts infra && git commit -m "infra: scripts up/down/leftovers por conta de ambiente"`, push e `gh pr create --fill`.
 
 **Pronto quando:** `down.sh` termina com "OK: nenhuma sobra encontrada" e `up.sh` recria tudo sem intervenção manual (até o wait das Applications).
 
@@ -1510,8 +1510,8 @@ Notas:
 ## Checkpoint da Fase 6
 
 - [ ] `scripts/up.sh staging` cria tudo na conta de staging e `scripts/down.sh staging` destrói tudo sem sobras
-- [ ] O ConfigMap `shortener-oidc` tem as 6 chaves e as Applications `shortener-api` e `shortener-web` existem (esperando os overlays da Fase 7)
-- [ ] O controller do Argo Rollouts roda com a Pod Identity (credenciais e `AWS_REGION` no ambiente do pod)
+- [x] O ConfigMap `shortener-oidc` tem as 6 chaves e as Applications `shortener-api` e `shortener-web` existem (esperando os overlays da Fase 7)
+- [x] O controller do Argo Rollouts roda com a Pod Identity (credenciais e `AWS_REGION` no ambiente do pod)
 - [ ] Você sabe explicar por que existem duas camadas de Terraform, por que a ordem do destroy importa e o que a trava `allowed_account_ids` evita
-- [ ] O CI do `shortener-deploy` valida todas as raízes
-- [ ] **O ambiente está derrubado** se você não for continuar agora
+- [x] O CI do `shortener-deploy` valida todas as raízes
+- [x] **O ambiente está derrubado** se você não for continuar agora
