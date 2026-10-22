@@ -1195,7 +1195,7 @@ Opcional: instale o plugin do Argo Rollouts, que a Fase 7 usa (`brew install arg
 - **Um ALB, dois donos.** Com IngressGroup (Fase 7), o ALB só some quando **os dois** Ingresses (`api` e `web`) somem. Por isso o `down` apaga as duas Applications antes de esperar o ALB.
 - **Cada script trabalha numa conta só:** todos exportam `AWS_PROFILE=shortener-$ENV`, então a AWS CLI e o `kubectl` falam com a conta do ambiente. O Terraform usa os profiles explícitos das raízes.
 
-- [ ] **Passo 1:** `scripts/up.sh`
+- [x] **Passo 1:** `scripts/up.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -1227,7 +1227,7 @@ kubectl --context "$CTX" -n argocd wait application/shortener-api application/sh
 echo ">> Pronto. API key: terraform -chdir=infra/envs/$ENV/platform output -raw api_key"
 ```
 
-- [ ] **Passo 2:** `scripts/down.sh`
+- [x] **Passo 2:** `scripts/down.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -1289,7 +1289,7 @@ echo ">> [4/4] Procurando sobras"
 
 Se o cluster já não existir (um `down` que caiu no meio, por exemplo), o script pula o passo 1 e vai direto aos destroys. Se o destroy da plataforma falhar porque o cluster sumiu, rode `terraform -chdir=infra/envs/$ENV/platform state list` e remova do state o que não existe mais (`terraform state rm`), e então siga com a camada aws.
 
-- [ ] **Passo 3:** `scripts/leftovers.sh`
+- [x] **Passo 3:** `scripts/leftovers.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -1310,6 +1310,28 @@ check() { # $1 = descrição, $2 = saída do comando
   fi
 }
 
+# A API de tags é um índice com atraso: recursos apagados há pouco (NAT, security groups e
+# regras) continuam listados por minutos ou até 1h, e a chave KMS do EKS fica listada nos
+# 30 dias de PendingDeletion (sem custo). Para esses tipos, confirma no serviço dono.
+still_exists() { # $1 = ARN
+  local arn="$1" id="${1##*/}" out
+  case "$arn" in
+    *:security-group/*)      out=$(aws ec2 describe-security-groups --region $R --group-ids "$id" --query 'SecurityGroups[0].GroupId' --output text 2>&1) ;;
+    *:security-group-rule/*) out=$(aws ec2 describe-security-group-rules --region $R --security-group-rule-ids "$id" --query 'SecurityGroupRules[0].SecurityGroupRuleId' --output text 2>&1) ;;
+    *:natgateway/*)          out=$(aws ec2 describe-nat-gateways --region $R --nat-gateway-ids "$id" --query 'NatGateways[0].State' --output text 2>&1) ;;
+    *:loadbalancer/*)        out=$(aws elbv2 describe-load-balancers --region $R --load-balancer-arns "$arn" --query 'LoadBalancers[0].State.Code' --output text 2>&1) ;;
+    *:targetgroup/*)         out=$(aws elbv2 describe-target-groups --region $R --target-group-arns "$arn" --query 'TargetGroups[0].TargetGroupName' --output text 2>&1) ;;
+    *:kms:*)                 out=$(aws kms describe-key --region $R --key-id "$id" --query 'KeyMetadata.KeyState' --output text 2>&1) ;;
+    *) return 0 ;; # outros tipos: confia no índice
+  esac
+  case "$out" in *NotFound*|deleted|PendingDeletion) return 1 ;; *) return 0 ;; esac
+}
+
+confirmed() { # lê ARNs (separados por tab) e devolve só os que ainda existem
+  local arn
+  for arn in $(cat); do still_exists "$arn" && echo "$arn"; done
+}
+
 # Recursos criados pelo Terraform deste ambiente.
 # EXCLUI ACM e Cognito de propósito: o certificado e o user pool são do bootstrap PERMANENTE
 # da conta (Fase 5), que também usa default_tags Environment=<env> e ManagedBy=terraform.
@@ -1318,12 +1340,12 @@ check "Recursos do Terraform com tag Environment=$ENV (fora o bootstrap: ACM e C
   "$(aws resourcegroupstaggingapi get-resources --region $R \
     --tag-filters "Key=ManagedBy,Values=terraform" "Key=Environment,Values=$ENV" \
     --query "ResourceTagMappingList[?!contains(ResourceARN, ':acm:') && !contains(ResourceARN, ':cognito-idp:')].ResourceARN" \
-    --output text)"
+    --output text | confirmed)"
 # Recursos criados pelo AWS Load Balancer Controller (ALB, target groups, security groups).
 check "Recursos do Load Balancer Controller (cluster shortener-$ENV)" \
   "$(aws resourcegroupstaggingapi get-resources --region $R \
     --tag-filters "Key=elbv2.k8s.aws/cluster,Values=shortener-$ENV" \
-    --query 'ResourceTagMappingList[].ResourceARN' --output text)"
+    --query 'ResourceTagMappingList[].ResourceARN' --output text | confirmed)"
 check "Load balancers" "$(aws elbv2 describe-load-balancers --region $R --query 'LoadBalancers[].LoadBalancerName' --output text)"
 check "NAT Gateways ativos" "$(aws ec2 describe-nat-gateways --region $R --filter Name=state,Values=available,pending \
   --query 'NatGateways[].NatGatewayId' --output text)"
@@ -1363,7 +1385,7 @@ Observações sobre o script:
 - **Por que excluir ACM e Cognito pelo ARN, e não por tag:** o bootstrap da conta (Fase 5) usa as mesmas `default_tags` (`Environment=<env>`, `ManagedBy=terraform`). Em vez de mudar a Fase 5 para ganhar uma tag `Layer=bootstrap`, o filtro aqui pula os ARNs `:acm:` e `:cognito-idp:`, que são exatamente os recursos permanentes do bootstrap. Se um dia a camada efêmera passar a criar certificado ou user pool, este filtro precisa ser revisto.
 - O bucket de state não aparece: ele vive na conta shared.
 - Os registros de validação do ACM (`_xxxx.shortener...`) são permanentes e não aparecem na checagem de DNS, porque ela consulta só os nomes exatos dos 3 hosts e os TXT do external-dns.
-- A API de tags é "eventualmente consistente". Logo após um destroy, ARNs já apagados podem aparecer por alguns minutos; rode de novo antes de se preocupar.
+- **A API de tags é um índice com atraso, não a fonte da verdade.** Logo depois do destroy, ela ainda lista o NAT Gateway, os security groups e as regras que acabaram de ser apagados (o NAT por até 1h). Ela também lista a chave KMS do EKS durante os 30 dias de `PendingDeletion`, um estado que não é cobrado. Por isso, o `still_exists` confirma esses tipos no serviço dono (`NotFound`, `deleted` ou `PendingDeletion` = não é sobra). Para os outros tipos, ele confia no índice: na dúvida, acusa.
 
 - [ ] **Passo 4: teste o ciclo completo**
 

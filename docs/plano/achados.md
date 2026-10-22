@@ -181,6 +181,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
   - Os atalhos viraram funções (`k() { kubectl --context shortener-staging "$@"; }`), que funcionam igual no zsh e no bash.
   - A Pod Identity é conferida pela spec do pod (`.spec.containers[0].env`), onde o webhook do EKS injeta `AWS_CONTAINER_CREDENTIALS_FULL_URI`. Medido em 22/10/2026: `AWS_REGION`, `AWS_STS_REGIONAL_ENDPOINTS`, `AWS_CONTAINER_CREDENTIALS_FULL_URI` e `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`.
 
+### C12. O `leftovers.sh` acusava sobras que não existiam. *Defeito do plano (Fase 6)*
+- **Onde:** `scripts/leftovers.sh` (Tarefa 6.5, Passo 3).
+- **Como quebrava:** no primeiro `down.sh` (22/10/2026, 76 recursos destruídos), a checagem por tag listou 8 "sobras": o NAT Gateway (`deleted` havia minutos), um security group e 5 regras (`NotFound`) e a chave KMS do EKS (`PendingDeletion` por 30 dias, sem custo). Era tudo atraso do índice da API de tags. O script terminava com exit 1 em todo `down`, e um alarme que sempre toca acaba sendo ignorado.
+- **Correção:** a função `still_exists` confirma no serviço dono os tipos que sobram assim (security group, regra, NAT, ALB, target group e chave KMS) e descarta `NotFound`, `deleted` e `PendingDeletion`. Tipos desconhecidos continuam sendo acusados. Testado com um security group existente (acusado) e com os 8 ARNs reais (descartados).
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)
