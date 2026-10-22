@@ -7,7 +7,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "shortener-tfstate-<SHARED_ACCOUNT_ID>"
+    bucket       = "shortener-tfstate-319679463324"
     key          = "bootstrap/staging.tfstate"
     region       = "us-east-1"
     use_lockfile = true
@@ -18,7 +18,7 @@ terraform {
 provider "aws" {
   region              = "us-east-1"
   profile             = "shortener-staging"
-  allowed_account_ids = ["<STAGING_ACCOUNT_ID>"]
+  allowed_account_ids = ["785072247212"]
   default_tags {
     tags = { Project = "shortener", Environment = "staging", ManagedBy = "terraform" }
   }

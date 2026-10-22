@@ -775,7 +775,7 @@ aws s3 ls s3://shortener-tfstate-<SHARED_ACCOUNT_ID> --recursive --profile short
 - **App client público** (`generate_secret = false`): o painel roda no navegador e não consegue guardar segredo. A proteção do fluxo é o PKCE, que o `oidc-client-ts` faz sozinho.
 - **Saídas usadas pelas próximas fases:** a camada `platform` (Fase 6) lê este state para montar o ConfigMap `shortener-oidc`, e o Ingress (Fase 7) usa o `certificate_arn`. Os nomes dos outputs são contrato: não mude.
 
-- [ ] **Passo 1: crie** `infra/bootstrap/modules/account-baseline/variables.tf`
+- [x] **Passo 1: crie** `infra/bootstrap/modules/account-baseline/variables.tf`
 
 ```hcl
 variable "environment" {
@@ -796,7 +796,7 @@ variable "cloudflare_zone_id" {
 }
 ```
 
-- [ ] **Passo 2: crie** `infra/bootstrap/modules/account-baseline/main.tf`
+- [x] **Passo 2: crie** `infra/bootstrap/modules/account-baseline/main.tf`
 
 ```hcl
 terraform {
@@ -915,7 +915,7 @@ locals {
 
 O `explicit_auth_flows` só com `ALLOW_REFRESH_TOKEN_AUTH` é proposital: o login acontece no Hosted UI (fluxo `code`), e o app nunca recebe senha. O refresh token é o que permite a renovação silenciosa do painel.
 
-- [ ] **Passo 3: crie** `infra/bootstrap/modules/account-baseline/outputs.tf`
+- [x] **Passo 3: crie** `infra/bootstrap/modules/account-baseline/outputs.tf`
 
 ```hcl
 output "certificate_arn" {
@@ -974,7 +974,7 @@ Os nomes de recursos e atributos acima foram conferidos na documentação do pro
 | `api` | `api.shortener-staging.fabricioroglio.com` | `api.shortener.fabricioroglio.com` |
 | `app` | `app.shortener-staging.fabricioroglio.com` | `app.shortener.fabricioroglio.com` |
 
-- [ ] **Passo 1: crie** `infra/bootstrap/staging/main.tf`
+- [x] **Passo 1: crie** `infra/bootstrap/staging/main.tf`
 
 ```hcl
 terraform {
@@ -1048,13 +1048,13 @@ output "hosts" {
 
 Aqui o backend já nasce no S3: o bucket existe desde a Tarefa 5.6.
 
-- [ ] **Passo 2: crie** `infra/bootstrap/staging/terraform.tfvars` (não tem segredo, vai para o Git)
+- [x] **Passo 2: crie** `infra/bootstrap/staging/terraform.tfvars` (não tem segredo, vai para o Git)
 
 ```hcl
 cloudflare_zone_id = "<ZONE_ID>"
 ```
 
-- [ ] **Passo 3: aplique staging**
+- [x] **Passo 3: aplique staging**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy/infra/bootstrap/staging
@@ -1064,7 +1064,7 @@ terraform apply    # a validação do ACM leva de 1 a 5 minutos
 terraform output
 ```
 
-- [ ] **Passo 4: crie a raiz de prod.** Copie a pasta e troque só o que é do ambiente:
+- [x] **Passo 4: crie a raiz de prod.** Copie a pasta e troque só o que é do ambiente:
 
 ```bash
 cd ..
@@ -1083,7 +1083,7 @@ terraform init && terraform apply
 terraform output
 ```
 
-- [ ] **Passo 5: confira os certificados**
+- [x] **Passo 5: confira os certificados**
 
 ```bash
 for env in staging prod; do
@@ -1094,7 +1094,7 @@ done
 
 Os dois aparecem com status `ISSUED` e 3 nomes cada. Na Cloudflare, aparecem 6 registros CNAME `_xxxx...` (3 por ambiente).
 
-- [ ] **Passo 6: abra o Hosted UI de staging**
+- [x] **Passo 6: abra o Hosted UI de staging**
 
 ```bash
 cd ../staging
@@ -1105,14 +1105,14 @@ open "${LOGOUT%/logout}/login?client_id=${CLIENT}&response_type=code&scope=openi
 
 A tela de login do Cognito abre, com o link "Sign up". Se quiser, cadastre-se: o código de verificação chega por e-mail. Depois do login, o navegador vai para `https://app.shortener-staging.fabricioroglio.com/callback?code=...` e dá erro de DNS, o que é esperado: o painel só existe a partir da Fase 7. O usuário fica no pool e serve nas próximas fases.
 
-- [ ] **Passo 7: confira os endpoints OIDC**
+- [x] **Passo 7: confira os endpoints OIDC**
 
 ```bash
 curl -s "$(terraform output -raw oidc_issuer)/.well-known/openid-configuration" | jq '{issuer, authorization_endpoint, jwks_uri}'
 curl -s "$(terraform output -raw oidc_jwks_url)" | jq '.keys | length'   # normalmente 2 chaves RS256
 ```
 
-- [ ] **Passo 8: commit pela rotina de PR** (na raiz do `shortener-deploy`)
+- [x] **Passo 8: commit pela rotina de PR** (na raiz do `shortener-deploy`)
 
 ```bash
 cd ~/Documents/projects/shortener-deploy
@@ -1144,12 +1144,12 @@ Não exporte `AWS_PROFILE` globalmente: cada raiz do Terraform já diz qual prof
 
 ## Checkpoint da Fase 5
 
-- [ ] Root da management com MFA; você entra no dia a dia pelo SSO, com MFA
-- [ ] Budget de US$ 20 na management cobrindo a organização, com alertas por e-mail
-- [ ] Organização com as OUs `Infrastructure` e `Workloads`, as contas `shared`, `staging` e `prod`, e as 3 SCPs anexadas
-- [ ] Contas-membro sem credenciais de root (centralized root access)
-- [ ] 4 profiles SSO funcionando, e você viu uma SCP negar uma chamada fora de `us-east-1`
-- [ ] State de `organization` e `bootstrap/*` no bucket da `shared`, versionado e com lock
-- [ ] Certificados de staging e prod emitidos com 3 nomes cada
-- [ ] Cognito de staging e prod com Hosted UI abrindo
+- [x] Root da management com MFA; você entra no dia a dia pelo SSO, com MFA
+- [x] Budget de US$ 20 na management cobrindo a organização, com alertas por e-mail
+- [x] Organização com as OUs `Infrastructure` e `Workloads`, as contas `shared`, `staging` e `prod`, e as 3 SCPs anexadas
+- [x] Contas-membro sem credenciais de root (centralized root access)
+- [x] 4 profiles SSO funcionando, e você viu uma SCP negar uma chamada fora de `us-east-1`
+- [x] State de `organization` e `bootstrap/*` no bucket da `shared`, versionado e com lock
+- [x] Certificados de staging e prod emitidos com 3 nomes cada
+- [x] Cognito de staging e prod com Hosted UI abrindo
 - [ ] Você sabe explicar por que ACM e Cognito ficam no bootstrap e por que a management não roda workload
