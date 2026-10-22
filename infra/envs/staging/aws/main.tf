@@ -54,3 +54,16 @@ output "cluster_name" {
 output "vpc_id" {
   value = module.env.vpc_id
 }
+
+output "database_url" {
+  value     = module.env.database_url
+  sensitive = true
+}
+
+output "redis_url" {
+  value = module.env.redis_url
+}
+
+output "kafka_brokers" {
+  value = module.env.kafka_brokers
+}
