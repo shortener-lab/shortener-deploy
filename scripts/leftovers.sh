@@ -16,6 +16,28 @@ check() { # $1 = descrição, $2 = saída do comando
   fi
 }
 
+# A API de tags é um índice com atraso: recursos apagados há pouco (NAT, security groups e
+# regras) continuam listados por minutos ou até 1h, e a chave KMS do EKS fica listada nos
+# 30 dias de PendingDeletion (sem custo). Para esses tipos, confirma no serviço dono.
+still_exists() { # $1 = ARN
+  local arn="$1" id="${1##*/}" out
+  case "$arn" in
+    *:security-group/*)      out=$(aws ec2 describe-security-groups --region $R --group-ids "$id" --query 'SecurityGroups[0].GroupId' --output text 2>&1) ;;
+    *:security-group-rule/*) out=$(aws ec2 describe-security-group-rules --region $R --security-group-rule-ids "$id" --query 'SecurityGroupRules[0].SecurityGroupRuleId' --output text 2>&1) ;;
+    *:natgateway/*)          out=$(aws ec2 describe-nat-gateways --region $R --nat-gateway-ids "$id" --query 'NatGateways[0].State' --output text 2>&1) ;;
+    *:loadbalancer/*)        out=$(aws elbv2 describe-load-balancers --region $R --load-balancer-arns "$arn" --query 'LoadBalancers[0].State.Code' --output text 2>&1) ;;
+    *:targetgroup/*)         out=$(aws elbv2 describe-target-groups --region $R --target-group-arns "$arn" --query 'TargetGroups[0].TargetGroupName' --output text 2>&1) ;;
+    *:kms:*)                 out=$(aws kms describe-key --region $R --key-id "$id" --query 'KeyMetadata.KeyState' --output text 2>&1) ;;
+    *) return 0 ;; # outros tipos: confia no índice
+  esac
+  case "$out" in *NotFound*|deleted|PendingDeletion) return 1 ;; *) return 0 ;; esac
+}
+
+confirmed() { # lê ARNs (separados por tab) e devolve só os que ainda existem
+  local arn
+  for arn in $(cat); do still_exists "$arn" && echo "$arn"; done
+}
+
 # Recursos criados pelo Terraform deste ambiente.
 # EXCLUI ACM e Cognito de propósito: o certificado e o user pool são do bootstrap PERMANENTE
 # da conta (Fase 5), que também usa default_tags Environment=<env> e ManagedBy=terraform.
@@ -24,12 +46,12 @@ check "Recursos do Terraform com tag Environment=$ENV (fora o bootstrap: ACM e C
   "$(aws resourcegroupstaggingapi get-resources --region $R \
     --tag-filters "Key=ManagedBy,Values=terraform" "Key=Environment,Values=$ENV" \
     --query "ResourceTagMappingList[?!contains(ResourceARN, ':acm:') && !contains(ResourceARN, ':cognito-idp:')].ResourceARN" \
-    --output text)"
+    --output text | confirmed)"
 # Recursos criados pelo AWS Load Balancer Controller (ALB, target groups, security groups).
 check "Recursos do Load Balancer Controller (cluster shortener-$ENV)" \
   "$(aws resourcegroupstaggingapi get-resources --region $R \
     --tag-filters "Key=elbv2.k8s.aws/cluster,Values=shortener-$ENV" \
-    --query 'ResourceTagMappingList[].ResourceARN' --output text)"
+    --query 'ResourceTagMappingList[].ResourceARN' --output text | confirmed)"
 check "Load balancers" "$(aws elbv2 describe-load-balancers --region $R --query 'LoadBalancers[].LoadBalancerName' --output text)"
 check "NAT Gateways ativos" "$(aws ec2 describe-nat-gateways --region $R --filter Name=state,Values=available,pending \
   --query 'NatGateways[].NatGatewayId' --output text)"
