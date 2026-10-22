@@ -1459,7 +1459,7 @@ done
 - **`validate` não autentica.** Ele confere sintaxe, tipos, referências e argumentos dos providers e módulos, sem chamar nenhuma API (nem a da AWS, nem o state remoto). Por isso `profile = "shortener-<env>"` e `allowed_account_ids` no provider não quebram o CI: são só atributos de configuração, que seriam usados no `plan`/`apply`. O runner do GitHub não tem `~/.aws/config` e isso não importa.
 - O `plan` em PR, com credenciais via GitHub OIDC → papel na conta, fica nas extensões.
 
-- [ ] **Passo 1:** `.github/workflows/ci.yml`
+- [x] **Passo 1:** `.github/workflows/ci.yml`
 
 ```yaml
 name: CI
@@ -1501,7 +1501,7 @@ Notas:
 - `infra/bootstrap/modules/account-baseline` e `infra/modules/*` não entram no loop: módulos são validados através das raízes que os usam.
 - Se a raiz de organização usar um provider com `profile = "shortener-mgmt"`, vale o mesmo raciocínio: `validate` não autentica.
 
-- [ ] **Passo 2: abra o PR e veja o job verde.** Rode `terraform fmt -recursive infra` localmente antes, se o `fmt -check` reclamar.
+- [x] **Passo 2: abra o PR e veja o job verde.** Rode `terraform fmt -recursive infra` localmente antes, se o `fmt -check` reclamar.
 
 **Pronto quando:** o PR mostra o check `infra` verde.
 
