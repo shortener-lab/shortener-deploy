@@ -657,7 +657,7 @@ Neste projeto, o mesmo token serve à validação dos certificados e ao external
 - **Lock do state no próprio S3** (`use_lockfile`), sem DynamoDB.
 - **Backend e provider podem usar contas diferentes.** O backend é só "onde guardar o arquivo de state"; o provider é "onde criar os recursos". A raiz `organization` cria recursos na management (`profile = "shortener-mgmt"` no provider) e guarda o state na shared (`profile = "shortener-shared"` no backend). Funciona porque o seu usuário SSO é admin na shared. Em empresa, o bucket teria uma bucket policy liberando roles específicas de cada conta (e o CI assumiria essas roles), em vez de um humano com admin em tudo.
 
-- [ ] **Passo 1: crie** `infra/bootstrap/shared/main.tf`
+- [x] **Passo 1: crie** `infra/bootstrap/shared/main.tf`
 
 ```hcl
 terraform {
@@ -723,7 +723,7 @@ output "tfstate_bucket" {
 }
 ```
 
-- [ ] **Passo 2: crie o bucket**
+- [x] **Passo 2: crie o bucket**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy/infra/bootstrap/shared
@@ -733,7 +733,7 @@ terraform apply
 terraform output tfstate_bucket   # shortener-tfstate-<SHARED_ACCOUNT_ID>
 ```
 
-- [ ] **Passo 3: migre o state do próprio bucket para dentro dele.** Descomente o `backend "s3"` e troque `<SHARED_ACCOUNT_ID>` pelo ID real. Blocos de backend não aceitam variáveis; o valor precisa ser literal.
+- [x] **Passo 3: migre o state do próprio bucket para dentro dele.** Descomente o `backend "s3"` e troque `<SHARED_ACCOUNT_ID>` pelo ID real. Blocos de backend não aceitam variáveis; o valor precisa ser literal.
 
 ```bash
 terraform init -migrate-state     # responda "yes"
@@ -741,7 +741,7 @@ rm -f terraform.tfstate terraform.tfstate.backup
 terraform plan                    # "No changes": o state agora vive no S3
 ```
 
-- [ ] **Passo 4: migre o state da organização.** Em `infra/organization/main.tf`, descomente o `backend "s3"` (key `organization/terraform.tfstate`, `profile = "shortener-shared"`) e troque o ID.
+- [x] **Passo 4: migre o state da organização.** Em `infra/organization/main.tf`, descomente o `backend "s3"` (key `organization/terraform.tfstate`, `profile = "shortener-shared"`) e troque o ID.
 
 ```bash
 cd ../../organization

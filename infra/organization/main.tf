@@ -4,14 +4,13 @@ terraform {
     aws = { source = "hashicorp/aws", version = "~> 6.0" }
   }
 
-  # Tarefa 5.6: descomente depois que o bucket existir e rode `terraform init -migrate-state`.
-  # backend "s3" {
-  #   bucket       = "shortener-tfstate-<SHARED_ACCOUNT_ID>"
-  #   key          = "organization/terraform.tfstate"
-  #   region       = "us-east-1"
-  #   use_lockfile = true
-  #   profile      = "shortener-shared"
-  # }
+  backend "s3" {
+    bucket       = "shortener-tfstate-319679463324"
+    key          = "organization/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
+    profile      = "shortener-shared"
+  }
 }
 
 provider "aws" {
