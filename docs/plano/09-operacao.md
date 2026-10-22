@@ -179,19 +179,19 @@ kubectl --context shortener-staging -n argocd patch application shortener-api --
 **A1. Lag do consumer no MSK** (auto-sync de `shortener-api` pausado: o worker faz parte dela)
 
 ```bash
-K="kubectl --context shortener-staging -n shortener"
-$K scale deploy/worker --replicas=0
+k() { kubectl --context shortener-staging -n shortener "$@"; }   # função, não variável: funciona no zsh e no bash
+k scale deploy/worker --replicas=0
 for i in $(seq 1 200); do curl -s -o /dev/null https://shortener-staging.fabricioroglio.com/<code>; done
 
 # Pod temporário com as ferramentas do Kafka, conectando via TLS:
-$K run kafka-cli --rm -it --restart=Never --image=apache/kafka:3.9.1 \
-  --env="BROKERS=$($K get cm shortener-infra -o jsonpath='{.data.KAFKA_BROKERS}')" -- bash -c '
+k run kafka-cli --rm -it --restart=Never --image=apache/kafka:3.9.1 \
+  --env="BROKERS=$(k get cm shortener-infra -o jsonpath='{.data.KAFKA_BROKERS}')" -- bash -c '
   echo "security.protocol=SSL" > /tmp/ssl.properties
   /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server "$BROKERS" \
     --command-config /tmp/ssl.properties --describe --group shortener-analytics'
 # coluna LAG ≈ 200, somando as partições
 
-$K scale deploy/worker --replicas=1                 # rode o kafka-cli de novo: LAG volta para 0
+k scale deploy/worker --replicas=1                 # rode o kafka-cli de novo: LAG volta para 0
 ```
 
 **A2. Autoscaling (HPA → Rollout)**
@@ -248,15 +248,15 @@ O ReplicaSet recria o pod, o consumer group rebalanceia e nenhum clique se perde
 Dispare um canary inofensivo: num PR no `shortener-deploy`, mude `LOG_LEVEL` no `configMapGenerator` de `apps/api/overlays/staging/kustomization.yaml` (de `debug` para `info`). O hash do ConfigMap muda, o template do pod muda e o Rollout começa um canary. Com o k6 rodando e o Rollout em `Paused` a 10%:
 
 ```bash
-R="kubectl argo rollouts --context shortener-staging -n shortener"
-$R abort api
-$R get rollout api                     # ✖ Degraded, RolloutAborted; peso 0/100; canary vai a zero após ~30 s
+r() { kubectl argo rollouts --context shortener-staging -n shortener "$@"; }   # função, não variável: funciona no zsh e no bash
+r abort api
+r get rollout api                     # ✖ Degraded, RolloutAborted; peso 0/100; canary vai a zero após ~30 s
 kubectl --context shortener-staging -n argocd get application shortener-api   # Synced + Degraded
 
-$R retry rollout api                   # recomeça do passo 0 (10%)
-$R get rollout api --watch
-$R promote api                         # pula a pausa atual e vai para o próximo passo
-# $R promote api --full                # pularia TODOS os passos e análises (evite: é desligar a rede de proteção)
+r retry rollout api                   # recomeça do passo 0 (10%)
+r get rollout api --watch
+r promote api                         # pula a pausa atual e vai para o próximo passo
+# r promote api --full                # pularia TODOS os passos e análises (evite: é desligar a rede de proteção)
 ```
 
 Hipótese a conferir: o ArgoCD não reage ao `abort` nem ao `retry`, porque eles só mexem no **status** do Rollout; o spec continua igual ao Git. Já o `promote --full` também é status, mas tira o sentido da análise: use só quando você **sabe** que a versão é boa e a análise está errada.
