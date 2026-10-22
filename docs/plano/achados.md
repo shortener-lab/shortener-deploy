@@ -162,6 +162,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Como quebrava:** a organização nova nasceu com a cota "Maximum number of accounts" em **2** (default 10). O `terraform apply` criou a `shortener-prod` e falhou nas outras duas com `ConstraintViolationException: You have exceeded the allowed number of AWS accounts`. O plano citava outro código de erro (`ACCOUNT_NUMBER_LIMIT_EXCEEDED`) e mandava pedir aumento só depois da falha. Pedir 5 pela API também falha: ela só aceita valores acima do default ("*greater than the default quota value of 10.0*").
 - **Correção:** novo Passo 8 na Tarefa 5.2 confere a cota e pede 11 antes de qualquer `apply`. O texto da Tarefa 5.3 traz a mensagem real.
 
+### C9. O teste da SCP esperava o código de erro errado. *Defeito do plano (Fase 5)*
+- **Onde:** `docs/plano/05-aws-organizacao-bootstrap.md`, Tarefa 5.4, Passo 3.
+- **Como quebrava:** o plano dizia que o `ec2 describe-vpcs` em `us-west-2` daria `AccessDenied`. O EC2 responde `UnauthorizedOperation` (medido em 22/10/2026). A frase que importa, "*with an explicit deny in a service control policy*", vem igual. Quem procurasse a palavra exata acharia que a SCP não funcionou.
+- **Correção:** o passo mostra o código real e explica que o nome do erro varia por serviço.
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)
