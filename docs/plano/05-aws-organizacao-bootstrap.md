@@ -57,21 +57,21 @@ Em empresa, cada ambiente tem a sua conta AWS. A conta é a fronteira mais forte
 
 **Conceitos:** esta é a única conta que você cria à mão. As outras 3 nascem pelo Terraform (Tarefa 5.3), dentro da organização.
 
-- [ ] **Passo 1: crie a conta** em <https://aws.amazon.com>
+- [x] **Passo 1: crie a conta** em <https://aws.amazon.com>
   - Use um e-mail que você controla. As contas-membro vão usar aliases desse e-mail com `+` (por exemplo `<seu-email>+shortener-staging@gmail.com`), então um Gmail é prático.
   - **Escolha o plano "Paid"** (pago). Ele também recebe os créditos de boas-vindas e não tem as restrições de serviço do plano "Free". Além disso, uma conta no plano Free que entra numa Organization é promovida a Paid automaticamente. Você só paga o que passar dos créditos, e o budget do passo 4 avisa antes.
   - Os créditos são para **clientes novos**. Se você já teve uma conta AWS, confira os termos antes de contar com eles.
   - Depois de criada, edite o nome da conta para `shortener-mgmt` (**Account** → *Account name*).
-- [ ] **Passo 2: ative MFA no usuário root.** Console → canto superior direito → **Security credentials** → **Assign MFA device**. Use um app autenticador ou uma passkey.
-- [ ] **Passo 3: libere o Billing para usuários IAM.** **Account** → *IAM user and role access to Billing information* → **Activate**. Sem isso, o seu usuário SSO não enxerga custos.
-- [ ] **Passo 4: crie o budget agora, antes de qualquer recurso.** Console → **Billing and Cost Management** → **Budgets** → **Create budget**:
+- [x] **Passo 2: ative MFA no usuário root.** Console → canto superior direito → **Security credentials** → **Assign MFA device**. Use um app autenticador ou uma passkey.
+- [x] **Passo 3: libere o Billing para usuários IAM.** **Account** → *IAM user and role access to Billing information* → **Activate**. Sem isso, o seu usuário SSO não enxerga custos.
+- [x] **Passo 4: crie o budget agora, antes de qualquer recurso.** Console → **Billing and Cost Management** → **Budgets** → **Create budget**:
   - Template: *Monthly cost budget*, valor **US$ 20**
   - Alertas (e-mail): 25% (US$ 5), 80% e 100% do valor real, mais 100% do valor **previsto**
 
   Um budget na management cobre **a organização inteira**: com billing consolidado, os custos de todas as contas-membro caem na fatura da management. Você não precisa de um budget por conta.
 
   Criar o budget também conta como uma das atividades que dão US$ 20 de crédito (widget "Explore AWS" na home do console). **Faça as atividades de crédito que quiser antes da Tarefa 5.2:** segundo o FAQ do Free Tier, uma conta que entra numa Organization deixa de poder ganhar créditos novos. Os créditos já ganhos continuam valendo até expirar.
-- [ ] **Passo 5: ative o Cost Explorer.** **Billing** → **Cost Explorer** → *Enable*. Os dados levam até 24h para aparecer. Mais tarde, o filtro **Linked account** mostra o custo de cada ambiente separado, um bônus didático da conta por ambiente.
+- [x] **Passo 5: ative o Cost Explorer.** **Billing** → **Cost Explorer** → *Enable*. Os dados levam até 24h para aparecer. Mais tarde, o filtro **Linked account** mostra o custo de cada ambiente separado, um bônus didático da conta por ambiente.
 
 **Pronto quando:** o root tem MFA e o budget aparece na lista.
 
@@ -85,12 +85,12 @@ Em empresa, cada ambiente tem a sua conta AWS. A conta é a fronteira mais forte
 - **Identity Center cria a Organization.** Ao habilitar o Identity Center numa conta avulsa, a AWS cria uma Organization com *all features* e faz dessa conta a management. É esperado.
 - **SCPs precisam de duas coisas:** a organização com *all features* (o Identity Center já cria assim) e o tipo de política `SERVICE_CONTROL_POLICY` habilitado na raiz (isso **não** vem ligado). Escolha deste plano: em vez de habilitar pelo console ou pela CLI (`aws organizations enable-policy-type`), a Tarefa 5.3 traz a organização existente para o Terraform com um bloco `import` e declara `enabled_policy_types` lá. Assim, a configuração da organização inteira fica no código e aparece em todo `plan`.
 
-- [ ] **Passo 1: ative o IAM Identity Center.** Console → **IAM Identity Center** → **Enable**, na região **us-east-1**. Escolha a opção com AWS Organizations (a recomendada), não a "account instance". A região do Identity Center não muda depois.
-- [ ] **Passo 2: exija MFA.** **Settings** → **Authentication** → **Multi-factor authentication** → *Configure*: "Every time they sign in (always-on)" e, se o usuário não tiver dispositivo, "Require them to register an MFA device at sign in".
-- [ ] **Passo 3: crie o seu usuário.** **Users** → **Add user**. Escolha um *username* (por exemplo, seu primeiro nome em minúsculas; ele vai para a variável `sso_username` na Tarefa 5.3) e o seu e-mail. Aceite o convite que chega por e-mail, defina a senha e **cadastre o MFA**.
-- [ ] **Passo 4: crie a permission set.** **Permission sets** → **Create** → *Predefined* → **AdministratorAccess**, com duração de sessão de **8h**. Mantenha o nome `AdministratorAccess`: o Terraform da Tarefa 5.3 a encontra por esse nome. Para estudo, admin é aceitável; em empresa você teria papéis menores (ReadOnly, PowerUser) e grupos.
-- [ ] **Passo 5: dê acesso à management.** **AWS accounts** → selecione a conta management → **Assign users or groups** → o seu usuário → `AdministratorAccess`. As outras 3 contas recebem o acesso pelo Terraform.
-- [ ] **Passo 6: configure o profile no terminal**
+- [x] **Passo 1: ative o IAM Identity Center.** Console → **IAM Identity Center** → **Enable**, na região **us-east-1**. Escolha a opção com AWS Organizations (a recomendada), não a "account instance". A região do Identity Center não muda depois.
+- [x] **Passo 2: exija MFA.** **Settings** → **Authentication** → **Multi-factor authentication** → *Configure*: "Every time they sign in (always-on)" e, se o usuário não tiver dispositivo, "Require them to register an MFA device at sign in".
+- [x] **Passo 3: crie o seu usuário.** **Users** → **Add user**. Escolha um *username* (por exemplo, seu primeiro nome em minúsculas; ele vai para a variável `sso_username` na Tarefa 5.3) e o seu e-mail. Aceite o convite que chega por e-mail, defina a senha e **cadastre o MFA**.
+- [x] **Passo 4: crie a permission set.** **Permission sets** → **Create** → *Predefined* → **AdministratorAccess**, com duração de sessão de **8h**. Mantenha o nome `AdministratorAccess`: o Terraform da Tarefa 5.3 a encontra por esse nome. Para estudo, admin é aceitável; em empresa você teria papéis menores (ReadOnly, PowerUser) e grupos.
+- [x] **Passo 5: dê acesso à management.** **AWS accounts** → selecione a conta management → **Assign users or groups** → o seu usuário → `AdministratorAccess`. As outras 3 contas recebem o acesso pelo Terraform.
+- [x] **Passo 6: configure o profile no terminal**
 
 ```bash
 aws configure sso
@@ -103,7 +103,7 @@ aws configure sso
 # Default client Region: us-east-1 · Output: json · Profile name: shortener-mgmt
 ```
 
-- [ ] **Passo 7: teste e anote os IDs**
+- [x] **Passo 7: teste e anote os IDs**
 
 ```bash
 aws sts get-caller-identity --profile shortener-mgmt                 # Account = <MGMT_ACCOUNT_ID>
@@ -117,7 +117,24 @@ aws organizations list-roots --profile shortener-mgmt \
 
 Anote o **Account ID** (vira `<MGMT_ACCOUNT_ID>`), o **ID da organização** (`o-...`) e a lista de *service principals*: os três entram na Tarefa 5.3.
 
-**Pronto quando:** o `get-caller-identity` funciona com o profile `shortener-mgmt` e a organização aparece com `featureSet = ALL`.
+- [x] **Passo 8: confira a cota de contas e peça aumento já**
+
+Organizações novas nascem com a cota de contas **travada abaixo do default**. Medido em out/2026: valor aplicado **2** (a management conta como uma), default 10. A Tarefa 5.3 precisa de 4. Sem o aumento, o `apply` cria uma conta e para no meio.
+
+```bash
+aws service-quotas get-service-quota --profile shortener-mgmt --region us-east-1 \
+  --service-code organizations --quota-code L-E619E033 --query 'Quota.Value'   # "Maximum number of accounts"
+# Se for menor que 4: a API só aceita pedido ACIMA do default (10). Pedir 5 dá
+# "You must provide a quota value greater than the default quota value of 10.0".
+aws service-quotas request-service-quota-increase --profile shortener-mgmt --region us-east-1 \
+  --service-code organizations --quota-code L-E619E033 --desired-value 11
+aws service-quotas list-requested-service-quota-change-history --profile shortener-mgmt --region us-east-1 \
+  --service-code organizations --query 'RequestedQuotas[].{status:Status,pedido:DesiredValue,caso:CaseId}'
+```
+
+O pedido vira um caso de suporte e pode levar de horas a dias. Enquanto espera, dá para escrever o Terraform da Tarefa 5.3 e fazer a Tarefa 5.5.
+
+**Pronto quando:** o `get-caller-identity` funciona com o profile `shortener-mgmt`, a organização aparece com `featureSet = ALL` e a cota de contas é 4 ou mais (ou o pedido está aberto).
 
 ---
 
@@ -134,7 +151,7 @@ Anote o **Account ID** (vira `<MGMT_ACCOUNT_ID>`), o **ID da organização** (`o
 - **E-mails fora do Git:** o repo é público. O seu e-mail e o seu usuário do SSO ficam em `private.auto.tfvars`, que está no `.gitignore` desde a Fase 4. O Terraform carrega `*.auto.tfvars` sozinho.
 - **State local por enquanto.** O bucket de state ainda não existe (ele nasce na conta `shared`, que esta tarefa cria). A migração para o S3 acontece na Tarefa 5.6.
 
-- [ ] **Passo 1: crie** `infra/organization/main.tf`
+- [x] **Passo 1: crie** `infra/organization/main.tf`
 
 ```hcl
 terraform {
@@ -226,7 +243,7 @@ resource "aws_organizations_account" "this" {
 }
 ```
 
-- [ ] **Passo 2: crie** `infra/organization/root-access.tf`
+- [x] **Passo 2: crie** `infra/organization/root-access.tf`
 
 **Conceitos:** o *centralized root access management* do IAM remove as credenciais de root (senha, chaves, MFA) das contas-membro. As poucas tarefas que exigem root (por exemplo, destravar uma bucket policy que bloqueou todo mundo) passam a ser feitas a partir da management, com sessões de root curtas (`sts:AssumeRoot`). Exige acesso confiável do IAM na organização (`iam.amazonaws.com`, já no `main.tf`). É opcional, mas recomendado: uma conta sem senha de root não pode ter a senha de root roubada.
 
@@ -245,7 +262,7 @@ O equivalente pela CLI (não precisa rodar; é só para referência) é `aws iam
 
 Se preferir pular este passo, apague o `root-access.tf`, o `depends_on` das contas e o `iam.amazonaws.com` da lista de serviços.
 
-- [ ] **Passo 3: crie as SCPs em** `infra/organization/policies/`
+- [x] **Passo 3: crie as SCPs em** `infra/organization/policies/`
 
 `deny-other-regions.json` foi transcrita do exemplo oficial da AWS ("Deny access to AWS based on the requested AWS region", repositório [aws-samples/service-control-policy-examples](https://github.com/aws-samples/service-control-policy-examples/tree/main/Region-controls), que é para onde a página de exemplos de SCP do guia do Organizations aponta hoje). Mudanças em relação ao original: um `Sid` descritivo, a região aprovada é só `us-east-1`, e a exceção de "role privilegiada" virou a `OrganizationAccountAccessRole`, a role que a organização cria em cada conta, que serve de porta de emergência. A lista de `NotAction` (serviços globais, cujos endpoints ficam em us-east-1 e não podem ser bloqueados por região) é a do exemplo, sem cortes. A AWS avisa que ela pode não incluir os serviços globais mais novos; a fonte da verdade é o repositório.
 
@@ -354,7 +371,7 @@ Se preferir pular este passo, apague o `root-access.tf`, o `depends_on` das cont
 }
 ```
 
-- [ ] **Passo 4: crie** `infra/organization/scps.tf`
+- [x] **Passo 4: crie** `infra/organization/scps.tf`
 
 ```hcl
 locals {
@@ -388,7 +405,7 @@ resource "aws_organizations_policy_attachment" "this" {
 
 O `content` vem dos arquivos JSON, e não de `jsonencode`, para que as políticas fiquem legíveis e comparáveis com os exemplos oficiais.
 
-- [ ] **Passo 5: crie** `infra/organization/sso.tf`
+- [x] **Passo 5: crie** `infra/organization/sso.tf`
 
 **Conceitos:** a permission set `AdministratorAccess` foi criada no console (Tarefa 5.2), então aqui ela é só lida (`data`). Em empresa, as permission sets também seriam código (`aws_ssoadmin_permission_set` + `aws_ssoadmin_managed_policy_attachment`); aqui, ler a existente evita importar e mantém a Tarefa 5.2 simples.
 
@@ -429,7 +446,7 @@ resource "aws_ssoadmin_account_assignment" "admin" {
 }
 ```
 
-- [ ] **Passo 6: crie** `infra/organization/variables.tf` e `outputs.tf`
+- [x] **Passo 6: crie** `infra/organization/variables.tf` e `outputs.tf`
 
 ```hcl
 # variables.tf
@@ -473,7 +490,7 @@ output "account_ids" {
 }
 ```
 
-- [ ] **Passo 7: preencha as variáveis**
+- [x] **Passo 7: preencha as variáveis**
 
 `infra/organization/terraform.tfvars` (vai para o Git; o ID da organização não é segredo):
 
@@ -488,7 +505,7 @@ email_local_part = "<seu-email>"   # só a parte antes do @
 sso_username     = "seu-username"  # o da Tarefa 5.2
 ```
 
-- [ ] **Passo 8: plan e apply**
+- [x] **Passo 8: plan e apply**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy/infra/organization
@@ -506,11 +523,11 @@ terraform apply     # criar as contas leva alguns minutos
 terraform output
 ```
 
-Se o apply falhar na criação de uma conta com `CONCURRENT_ACCOUNT_MODIFICATION` ou `TooManyRequestsException`, rode `terraform apply` de novo: a API cria contas de forma assíncrona e às vezes recusa pedidos simultâneos. Se aparecer `ACCOUNT_NUMBER_LIMIT_EXCEEDED`, organizações novas às vezes têm uma cota baixa de contas: peça aumento em **Service Quotas** → *AWS Organizations* → "Default maximum number of accounts".
+Se o apply falhar na criação de uma conta com `CONCURRENT_ACCOUNT_MODIFICATION` ou `TooManyRequestsException`, rode `terraform apply` de novo: a API cria contas de forma assíncrona e às vezes recusa pedidos simultâneos. Se aparecer `ConstraintViolationException: You have exceeded the allowed number of AWS accounts`, a cota do Passo 8 da Tarefa 5.2 ainda não subiu. O state fica consistente: o que foi criado continua lá, e um `terraform apply` depois da aprovação cria só o que falta.
 
 Anote os IDs do `account_ids`: eles viram `<SHARED_ACCOUNT_ID>`, `<STAGING_ACCOUNT_ID>` e `<PROD_ACCOUNT_ID>` daqui em diante.
 
-- [ ] **Passo 9: confira**
+- [x] **Passo 9: confira**
 
 ```bash
 aws organizations list-accounts --profile shortener-mgmt \
@@ -531,7 +548,7 @@ Cada conta-membro manda um e-mail de boas-vindas para o alias `+shortener-<conta
 
 **Conceitos:** uma `sso-session` (um login, com MFA) serve vários profiles. Cada profile é "esta conta, com este papel". Um `aws sso login --sso-session shortener` vale para todos durante as 8h da sessão.
 
-- [ ] **Passo 1: deixe o `~/.aws/config` assim** (o `aws configure sso` da Tarefa 5.2 já criou a `sso-session` e o profile da management; acrescente os outros três)
+- [x] **Passo 1: deixe o `~/.aws/config` assim** (o `aws configure sso` da Tarefa 5.2 já criou a `sso-session` e o profile da management; acrescente os outros três)
 
 ```ini
 [sso-session shortener]
@@ -570,7 +587,7 @@ output = json
 
 O `sso_start_url` é a "AWS access portal URL" do Identity Center (a sua, não o exemplo).
 
-- [ ] **Passo 2: teste as 4 contas**
+- [x] **Passo 2: teste as 4 contas**
 
 ```bash
 aws sso login --sso-session shortener
@@ -580,11 +597,12 @@ done
 aws sts get-caller-identity --profile shortener-staging   # Arn: ...assumed-role/AWSReservedSSO_AdministratorAccess_.../<seu-username>
 ```
 
-- [ ] **Passo 3: veja uma SCP funcionando**
+- [x] **Passo 3: veja uma SCP funcionando**
 
 ```bash
 aws ec2 describe-vpcs --profile shortener-staging --region us-west-2
-# esperado: AccessDenied ... "with an explicit deny in a service control policy"
+# esperado: UnauthorizedOperation ... "with an explicit deny in a service control policy"
+# (o EC2 chama o erro de UnauthorizedOperation; outros serviços, como o S3, dizem AccessDenied)
 aws ec2 describe-vpcs --profile shortener-staging --region us-east-1 --query 'Vpcs[].VpcId'
 # funciona (a VPC default da conta)
 ```
@@ -597,17 +615,31 @@ aws ec2 describe-vpcs --profile shortener-staging --region us-east-1 --query 'Vp
 
 **Conceitos:** token com o **menor privilégio possível**, limitado a uma única zona. Nesta fase ele valida os certificados ACM das contas staging e prod (3 hosts por conta); na Fase 6, o external-dns de cada cluster o usa para criar os registros dos 3 hosts.
 
-- [ ] **Passo 1: crie o token.** Cloudflare → **My Profile** → **API Tokens** → **Create Token** → **Custom token**:
+- [x] **Passo 1: crie o token.** Cloudflare → **My Profile** → **API Tokens** → **Create Token** → **Custom token**:
   - Nome: `shortener-dns`
   - Permissões: **Zone → DNS → Edit** e **Zone → Zone → Read** (o external-dns precisa listar a zona)
   - Zone Resources: **Include → Specific zone → fabricioroglio.com**
-- [ ] **Passo 2: guarde o token** num gerenciador de senhas (1Password, Bitwarden etc.) e **nunca** no repositório.
-- [ ] **Passo 3: anote o Zone ID.** Cloudflare → `fabricioroglio.com` → página **Overview** → coluna da direita, **Zone ID**. Ele não é secreto e vira `<ZONE_ID>`.
-- [ ] **Passo 4: exporte para a sessão atual**
+- [x] **Passo 2: guarde o token no Keychain do macOS** (um gerenciador de senhas que já vem no sistema), e **nunca** no repositório nem num chat:
 
 ```bash
-export CLOUDFLARE_API_TOKEN='...'                            # usado pelo provider da Cloudflare (bootstrap)
-export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"   # usado pelo Terraform da plataforma (external-dns)
+security add-generic-password -a "$USER" -s shortener-cloudflare-token -w
+# pede o token duas vezes, sem eco: ele não passa pelo histórico do shell
+```
+
+- [x] **Passo 3: descubra o Zone ID pela API.** A permissão *Zone Read* do próprio token basta. O Zone ID não é secreto e vai para o `terraform.tfvars` de staging e prod.
+
+```bash
+CF_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)
+curl -s -H "Authorization: Bearer $CF_TOKEN" https://api.cloudflare.com/client/v4/zones \
+  | jq '.result[] | {name, id}'      # privilégio mínimo: só fabricioroglio.com aparece
+```
+
+- [x] **Passo 4: confira o que ele NÃO consegue.** Com o mesmo token, `GET /zones/<ZONE_ID>/settings`, `GET /zones/<ZONE_ID>/rulesets` e `GET /user` devem dar **403**; `GET /zones/<ZONE_ID>/dns_records` dá 200.
+- [x] **Passo 5: exporte para a sessão atual**
+
+```bash
+export CLOUDFLARE_API_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)  # provider da Cloudflare (bootstrap)
+export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"                                     # Terraform da plataforma (external-dns)
 ```
 
 Neste projeto, o mesmo token serve à validação dos certificados e ao external-dns dos dois ambientes. Em empresa, seriam tokens separados, um por uso e por ambiente.
@@ -625,7 +657,7 @@ Neste projeto, o mesmo token serve à validação dos certificados e ao external
 - **Lock do state no próprio S3** (`use_lockfile`), sem DynamoDB.
 - **Backend e provider podem usar contas diferentes.** O backend é só "onde guardar o arquivo de state"; o provider é "onde criar os recursos". A raiz `organization` cria recursos na management (`profile = "shortener-mgmt"` no provider) e guarda o state na shared (`profile = "shortener-shared"` no backend). Funciona porque o seu usuário SSO é admin na shared. Em empresa, o bucket teria uma bucket policy liberando roles específicas de cada conta (e o CI assumiria essas roles), em vez de um humano com admin em tudo.
 
-- [ ] **Passo 1: crie** `infra/bootstrap/shared/main.tf`
+- [x] **Passo 1: crie** `infra/bootstrap/shared/main.tf`
 
 ```hcl
 terraform {
@@ -691,7 +723,7 @@ output "tfstate_bucket" {
 }
 ```
 
-- [ ] **Passo 2: crie o bucket**
+- [x] **Passo 2: crie o bucket**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy/infra/bootstrap/shared
@@ -701,7 +733,7 @@ terraform apply
 terraform output tfstate_bucket   # shortener-tfstate-<SHARED_ACCOUNT_ID>
 ```
 
-- [ ] **Passo 3: migre o state do próprio bucket para dentro dele.** Descomente o `backend "s3"` e troque `<SHARED_ACCOUNT_ID>` pelo ID real. Blocos de backend não aceitam variáveis; o valor precisa ser literal.
+- [x] **Passo 3: migre o state do próprio bucket para dentro dele.** Descomente o `backend "s3"` e troque `<SHARED_ACCOUNT_ID>` pelo ID real. Blocos de backend não aceitam variáveis; o valor precisa ser literal.
 
 ```bash
 terraform init -migrate-state     # responda "yes"
@@ -709,7 +741,7 @@ rm -f terraform.tfstate terraform.tfstate.backup
 terraform plan                    # "No changes": o state agora vive no S3
 ```
 
-- [ ] **Passo 4: migre o state da organização.** Em `infra/organization/main.tf`, descomente o `backend "s3"` (key `organization/terraform.tfstate`, `profile = "shortener-shared"`) e troque o ID.
+- [x] **Passo 4: migre o state da organização.** Em `infra/organization/main.tf`, descomente o `backend "s3"` (key `organization/terraform.tfstate`, `profile = "shortener-shared"`) e troque o ID.
 
 ```bash
 cd ../../organization
@@ -743,7 +775,7 @@ aws s3 ls s3://shortener-tfstate-<SHARED_ACCOUNT_ID> --recursive --profile short
 - **App client público** (`generate_secret = false`): o painel roda no navegador e não consegue guardar segredo. A proteção do fluxo é o PKCE, que o `oidc-client-ts` faz sozinho.
 - **Saídas usadas pelas próximas fases:** a camada `platform` (Fase 6) lê este state para montar o ConfigMap `shortener-oidc`, e o Ingress (Fase 7) usa o `certificate_arn`. Os nomes dos outputs são contrato: não mude.
 
-- [ ] **Passo 1: crie** `infra/bootstrap/modules/account-baseline/variables.tf`
+- [x] **Passo 1: crie** `infra/bootstrap/modules/account-baseline/variables.tf`
 
 ```hcl
 variable "environment" {
@@ -764,7 +796,7 @@ variable "cloudflare_zone_id" {
 }
 ```
 
-- [ ] **Passo 2: crie** `infra/bootstrap/modules/account-baseline/main.tf`
+- [x] **Passo 2: crie** `infra/bootstrap/modules/account-baseline/main.tf`
 
 ```hcl
 terraform {
@@ -883,7 +915,7 @@ locals {
 
 O `explicit_auth_flows` só com `ALLOW_REFRESH_TOKEN_AUTH` é proposital: o login acontece no Hosted UI (fluxo `code`), e o app nunca recebe senha. O refresh token é o que permite a renovação silenciosa do painel.
 
-- [ ] **Passo 3: crie** `infra/bootstrap/modules/account-baseline/outputs.tf`
+- [x] **Passo 3: crie** `infra/bootstrap/modules/account-baseline/outputs.tf`
 
 ```hcl
 output "certificate_arn" {
@@ -942,7 +974,7 @@ Os nomes de recursos e atributos acima foram conferidos na documentação do pro
 | `api` | `api.shortener-staging.fabricioroglio.com` | `api.shortener.fabricioroglio.com` |
 | `app` | `app.shortener-staging.fabricioroglio.com` | `app.shortener.fabricioroglio.com` |
 
-- [ ] **Passo 1: crie** `infra/bootstrap/staging/main.tf`
+- [x] **Passo 1: crie** `infra/bootstrap/staging/main.tf`
 
 ```hcl
 terraform {
@@ -1016,13 +1048,13 @@ output "hosts" {
 
 Aqui o backend já nasce no S3: o bucket existe desde a Tarefa 5.6.
 
-- [ ] **Passo 2: crie** `infra/bootstrap/staging/terraform.tfvars` (não tem segredo, vai para o Git)
+- [x] **Passo 2: crie** `infra/bootstrap/staging/terraform.tfvars` (não tem segredo, vai para o Git)
 
 ```hcl
 cloudflare_zone_id = "<ZONE_ID>"
 ```
 
-- [ ] **Passo 3: aplique staging**
+- [x] **Passo 3: aplique staging**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy/infra/bootstrap/staging
@@ -1032,7 +1064,7 @@ terraform apply    # a validação do ACM leva de 1 a 5 minutos
 terraform output
 ```
 
-- [ ] **Passo 4: crie a raiz de prod.** Copie a pasta e troque só o que é do ambiente:
+- [x] **Passo 4: crie a raiz de prod.** Copie a pasta e troque só o que é do ambiente:
 
 ```bash
 cd ..
@@ -1051,7 +1083,7 @@ terraform init && terraform apply
 terraform output
 ```
 
-- [ ] **Passo 5: confira os certificados**
+- [x] **Passo 5: confira os certificados**
 
 ```bash
 for env in staging prod; do
@@ -1062,7 +1094,7 @@ done
 
 Os dois aparecem com status `ISSUED` e 3 nomes cada. Na Cloudflare, aparecem 6 registros CNAME `_xxxx...` (3 por ambiente).
 
-- [ ] **Passo 6: abra o Hosted UI de staging**
+- [x] **Passo 6: abra o Hosted UI de staging**
 
 ```bash
 cd ../staging
@@ -1073,14 +1105,14 @@ open "${LOGOUT%/logout}/login?client_id=${CLIENT}&response_type=code&scope=openi
 
 A tela de login do Cognito abre, com o link "Sign up". Se quiser, cadastre-se: o código de verificação chega por e-mail. Depois do login, o navegador vai para `https://app.shortener-staging.fabricioroglio.com/callback?code=...` e dá erro de DNS, o que é esperado: o painel só existe a partir da Fase 7. O usuário fica no pool e serve nas próximas fases.
 
-- [ ] **Passo 7: confira os endpoints OIDC**
+- [x] **Passo 7: confira os endpoints OIDC**
 
 ```bash
 curl -s "$(terraform output -raw oidc_issuer)/.well-known/openid-configuration" | jq '{issuer, authorization_endpoint, jwks_uri}'
 curl -s "$(terraform output -raw oidc_jwks_url)" | jq '.keys | length'   # normalmente 2 chaves RS256
 ```
 
-- [ ] **Passo 8: commit pela rotina de PR** (na raiz do `shortener-deploy`)
+- [x] **Passo 8: commit pela rotina de PR** (na raiz do `shortener-deploy`)
 
 ```bash
 cd ~/Documents/projects/shortener-deploy
@@ -1104,7 +1136,7 @@ Confira se os `.terraform.lock.hcl` das 4 raízes entraram no commit: eles **dev
 
 ```bash
 aws sso login --sso-session shortener          # um login (com MFA) vale para os 4 profiles por 8h
-export CLOUDFLARE_API_TOKEN='...'              # do gerenciador de senhas
+export CLOUDFLARE_API_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)  # do Keychain (Tarefa 5.5)
 export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
 ```
 
@@ -1112,12 +1144,12 @@ Não exporte `AWS_PROFILE` globalmente: cada raiz do Terraform já diz qual prof
 
 ## Checkpoint da Fase 5
 
-- [ ] Root da management com MFA; você entra no dia a dia pelo SSO, com MFA
-- [ ] Budget de US$ 20 na management cobrindo a organização, com alertas por e-mail
-- [ ] Organização com as OUs `Infrastructure` e `Workloads`, as contas `shared`, `staging` e `prod`, e as 3 SCPs anexadas
-- [ ] Contas-membro sem credenciais de root (centralized root access)
-- [ ] 4 profiles SSO funcionando, e você viu uma SCP negar uma chamada fora de `us-east-1`
-- [ ] State de `organization` e `bootstrap/*` no bucket da `shared`, versionado e com lock
-- [ ] Certificados de staging e prod emitidos com 3 nomes cada
-- [ ] Cognito de staging e prod com Hosted UI abrindo
+- [x] Root da management com MFA; você entra no dia a dia pelo SSO, com MFA
+- [x] Budget de US$ 20 na management cobrindo a organização, com alertas por e-mail
+- [x] Organização com as OUs `Infrastructure` e `Workloads`, as contas `shared`, `staging` e `prod`, e as 3 SCPs anexadas
+- [x] Contas-membro sem credenciais de root (centralized root access)
+- [x] 4 profiles SSO funcionando, e você viu uma SCP negar uma chamada fora de `us-east-1`
+- [x] State de `organization` e `bootstrap/*` no bucket da `shared`, versionado e com lock
+- [x] Certificados de staging e prod emitidos com 3 nomes cada
+- [x] Cognito de staging e prod com Hosted UI abrindo
 - [ ] Você sabe explicar por que ACM e Cognito ficam no bootstrap e por que a management não roda workload
