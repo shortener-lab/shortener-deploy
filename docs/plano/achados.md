@@ -167,6 +167,20 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Como quebrava:** o plano dizia que o `ec2 describe-vpcs` em `us-west-2` daria `AccessDenied`. O EC2 responde `UnauthorizedOperation` (medido em 22/10/2026). A frase que importa, "*with an explicit deny in a service control policy*", vem igual. Quem procurasse a palavra exata acharia que a SCP não funcionou.
 - **Correção:** o passo mostra o código real e explica que o nome do erro varia por serviço.
 
+### C10. Flags numa variável quebravam no zsh. *Defeito do plano (Fase 6)*
+- **Onde:** `docs/plano/06-terraform-ambientes.md`, Tarefa 6.1, Passo 1.
+- **Como quebrava:** o passo fazia `P="--profile shortener-staging --region us-east-1"` e depois `aws eks ... $P`. No bash, o `$P` vira 4 argumentos. No zsh (o shell padrão do macOS), vira **um**, e a AWS CLI responde `Unknown options: --profile shortener-staging --region us-east-1`.
+- **Correção:** o passo exporta `AWS_PROFILE` e `AWS_REGION`, que valem para qualquer shell. A rotina de início de sessão também passou a ler o token da Cloudflare do Keychain, como na Fase 5.
+
+### C11. `K="kubectl ..."` e `exec ... env` não funcionavam. *Defeito do plano (Fases 6 a 9)*
+- **Onde:** Tarefa 6.4 (Passo 10), Tarefa 7.4, Tarefa 8.5 e os experimentos A1 e A6 da Fase 9.
+- **Como quebrava:**
+  - O mesmo problema do C10, com comandos inteiros: `K="kubectl --context shortener-staging"` e depois `$K get ...`. No zsh, o shell procura um programa chamado `kubectl --context shortener-staging` e responde `command not found`.
+  - A conferência da Pod Identity rodava `kubectl exec deploy/argo-rollouts -- env`. A imagem do controller é *distroless* (sem shell e sem o binário `env`), e o exec falha com `executable file not found in $PATH`.
+- **Correção:**
+  - Os atalhos viraram funções (`k() { kubectl --context shortener-staging "$@"; }`), que funcionam igual no zsh e no bash.
+  - A Pod Identity é conferida pela spec do pod (`.spec.containers[0].env`), onde o webhook do EKS injeta `AWS_CONTAINER_CREDENTIALS_FULL_URI`. Medido em 22/10/2026: `AWS_REGION`, `AWS_STS_REGIONAL_ENDPOINTS`, `AWS_CONTAINER_CREDENTIALS_FULL_URI` e `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`.
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)

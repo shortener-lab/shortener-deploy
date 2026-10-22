@@ -1049,13 +1049,13 @@ Opcional, para quem gosta de ver em tela: `kubectl argo rollouts dashboard --con
 - [ ] **Passo 4: confira cada peça pelo terminal**
 
 ```bash
-K="kubectl --context shortener-staging -n shortener"
-$K logs job/setup                          # migrations ok / tópicos ok
-$K get rollout,deploy,pods                 # api, worker e web Running/Ready
-$K get svc -o wide                         # SELECTOR de api-stable/api-canary/web-* com rollouts-pod-template-hash
-$K get ingress                             # api e web com o MESMO ADDRESS (k8s-shortener-xxxx.us-east-1.elb.amazonaws.com)
-$K get ingress api -o yaml | yq '.metadata.annotations' | grep -A3 actions.api-stable   # escrita pelo Rollouts: 100% api-stable
-$K get hpa api                             # TARGETS cpu: x%/70%, REFERENCE Rollout/api
+k() { kubectl --context shortener-staging -n shortener "$@"; }   # função, não variável: funciona no zsh e no bash
+k logs job/setup                          # migrations ok / tópicos ok
+k get rollout,deploy,pods                 # api, worker e web Running/Ready
+k get svc -o wide                         # SELECTOR de api-stable/api-canary/web-* com rollouts-pod-template-hash
+k get ingress                             # api e web com o MESMO ADDRESS (k8s-shortener-xxxx.us-east-1.elb.amazonaws.com)
+k get ingress api -o yaml | yq '.metadata.annotations' | grep -A3 actions.api-stable   # escrita pelo Rollouts: 100% api-stable
+k get hpa api                             # TARGETS cpu: x%/70%, REFERENCE Rollout/api
 kubectl --context shortener-staging -n external-dns logs deploy/external-dns | tail   # 3 hosts "CREATE"
 for h in shortener-staging api.shortener-staging app.shortener-staging; do
   echo "$h → $(dig +short $h.fabricioroglio.com | head -1)"    # os 3 apontam para o mesmo ALB (1–3 min)

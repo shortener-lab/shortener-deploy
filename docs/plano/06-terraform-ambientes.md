@@ -23,7 +23,7 @@
 cd ~/Documents/projects/shortener-deploy
 aws sso login --sso-session shortener        # um login vale para os 4 profiles (8h)
 export AWS_PROFILE=shortener-staging         # para os comandos manuais da AWS CLI
-export CLOUDFLARE_API_TOKEN='...'            # do gerenciador de senhas
+export CLOUDFLARE_API_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)  # do Keychain (Tarefa 5.5)
 export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
 export CLOUDFLARE_ZONE_ID='<ZONE_ID>'        # usado pelo leftovers.sh
 aws sts get-caller-identity --query Account --output text   # deve mostrar <STAGING_ACCOUNT_ID>
@@ -74,21 +74,23 @@ Os blocos abaixo usam `terraform-aws-modules/vpc` v6, `terraform-aws-modules/eks
 
 ## Tarefa 6.1: escolher versões e preparar variáveis
 
-- [ ] **Passo 1: consulte as versões disponíveis na conta de staging** (com a sessão SSO ativa)
+- [x] **Passo 1: consulte as versões disponíveis na conta de staging** (com a sessão SSO ativa)
 
 ```bash
-P="--profile shortener-staging --region us-east-1"
-aws eks describe-cluster-versions $P --output table      # use a mais nova em STANDARD_SUPPORT
-aws kafka list-kafka-versions $P --query 'KafkaVersions[?Status==`ACTIVE`].Version'   # use 3.9.x
-aws rds describe-db-engine-versions $P --engine postgres --query "DBEngineVersions[?starts_with(EngineVersion,'17')].EngineVersion"
-aws elasticache describe-cache-engine-versions $P --engine valkey --query 'CacheEngineVersions[].EngineVersion'
+export AWS_PROFILE=shortener-staging AWS_REGION=us-east-1
+aws eks describe-cluster-versions --query 'clusterVersions[].[clusterVersion,versionStatus,endOfStandardSupportDate]' --output text   # use a mais nova em STANDARD_SUPPORT
+aws kafka list-kafka-versions --query 'KafkaVersions[?Status==`ACTIVE`].Version'   # use 3.9.x
+aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[?starts_with(EngineVersion,'17')].EngineVersion"
+aws elasticache describe-cache-engine-versions --engine valkey --query 'CacheEngineVersions[].EngineVersion'
 ```
+
+Não guarde as flags numa variável (`P="--profile ... --region ..."` e depois `aws ... $P`). O zsh, shell padrão do macOS, não divide variáveis em palavras como o bash: o `$P` chega ao `aws` como **um** argumento, e ele responde `Unknown options`. As variáveis `AWS_PROFILE` e `AWS_REGION` resolvem sem esse problema.
 
 Anote a versão do Kubernetes; ela vai no `terraform.tfvars` de cada ambiente.
 
 **Fique sempre em uma versão em "standard support".** Em "extended support", o preço do plano de controle sobe de US$ 0,10 para US$ 0,60 por hora.
 
-- [ ] **Passo 2: libere o acesso à API do EKS só para o seu IP**
+- [x] **Passo 2: libere o acesso à API do EKS só para o seu IP**
 
 ```bash
 export TF_VAR_admin_cidrs="[\"$(curl -s https://checkip.amazonaws.com)/32\"]"
@@ -111,7 +113,7 @@ O `up.sh` faz isso sozinho. Se o seu IP mudar (outra rede, VPN), rode `apply` de
 - **Acesso ao cluster via EKS Access Entries.**
 - **EKS Pod Identity:** um service account do Kubernetes recebe um papel IAM sem chave nenhuma. Usamos duas: o Load Balancer Controller (cria ALBs) e o controller do Argo Rollouts (lê métricas do CloudWatch para decidir se o canary avança, Fase 7).
 
-- [ ] **Passo 1:** `infra/modules/aws-environment/versions.tf`
+- [x] **Passo 1:** `infra/modules/aws-environment/versions.tf`
 
 ```hcl
 terraform {
@@ -122,7 +124,7 @@ terraform {
 }
 ```
 
-- [ ] **Passo 2:** `infra/modules/aws-environment/variables.tf`
+- [x] **Passo 2:** `infra/modules/aws-environment/variables.tf`
 
 ```hcl
 variable "environment" {
@@ -204,7 +206,7 @@ locals {
 }
 ```
 
-- [ ] **Passo 3:** `infra/modules/aws-environment/network.tf`
+- [x] **Passo 3:** `infra/modules/aws-environment/network.tf`
 
 ```hcl
 module "vpc" {
@@ -228,7 +230,7 @@ module "vpc" {
 
 Como cada ambiente tem a sua conta, os CIDRs (`10.10.0.0/16` em staging e `10.20.0.0/16` em prod) nem precisariam ser diferentes. Mantemos separados porque custa zero e deixa a porta aberta para um peering ou Transit Gateway no futuro.
 
-- [ ] **Passo 4:** `infra/modules/aws-environment/eks.tf`
+- [x] **Passo 4:** `infra/modules/aws-environment/eks.tf`
 
 ```hcl
 module "eks" {
@@ -321,7 +323,7 @@ Notas sobre a Pod Identity do Argo Rollouts:
 - **A associação pode existir antes do namespace e do service account.** Ela é só um registro no EKS ("pods com o SA `argo-rollouts` no namespace `argo-rollouts` recebem este papel"). Quando o chart criar o SA (camada 2), o agente de Pod Identity entrega as credenciais aos pods.
 - **Por que na camada `aws`:** é IAM, e o módulo `platform` não usa o provider `aws` para criar recursos.
 
-- [ ] **Passo 5:** `infra/modules/aws-environment/outputs.tf` (versão parcial; a Tarefa 6.3 completa)
+- [x] **Passo 5:** `infra/modules/aws-environment/outputs.tf` (versão parcial; a Tarefa 6.3 completa)
 
 ```hcl
 output "cluster_name" {
@@ -333,7 +335,7 @@ output "vpc_id" {
 }
 ```
 
-- [ ] **Passo 6:** raiz de staging, `infra/envs/staging/aws/main.tf`
+- [x] **Passo 6:** raiz de staging, `infra/envs/staging/aws/main.tf`
 
 ```hcl
 terraform {
@@ -400,7 +402,7 @@ output "vpc_id" {
 kubernetes_version = "<versão da Tarefa 6.1>"
 ```
 
-- [ ] **Passo 7: suba só rede e cluster** (a primeira vez é manual, para você ler o plano)
+- [x] **Passo 7: suba só rede e cluster** (a primeira vez é manual, para você ler o plano)
 
 ```bash
 cd infra/envs/staging/aws
@@ -421,7 +423,7 @@ Com `--profile`, o `update-kubeconfig` grava `AWS_PROFILE=shortener-staging` na 
 
 Para ver a trava funcionando, rode `AWS_PROFILE=shortener-prod terraform plan` e repare que **nada muda**: o profile do provider é explícito. Agora troque, num rascunho que você **não** vai commitar, `profile = "shortener-prod"` no provider e rode `terraform plan`: o erro `AWS account ID not allowed: <PROD_ACCOUNT_ID>` aparece antes de qualquer leitura. Desfaça a mudança.
 
-- [ ] **Passo 8: commit** (em uma branch, abrindo PR)
+- [x] **Passo 8: commit** (em uma branch, abrindo PR)
 
 ```bash
 git switch -c infra/aws-environment
@@ -447,7 +449,7 @@ Se for parar por aqui hoje, rode **`terraform -chdir=infra/envs/staging/aws dest
 - **Configuração de broker no MSK.**
 - **Senha gerada pelo Terraform.** Ela fica no state, que é criptografado no S3 da conta shared; a evolução é usar o Secrets Manager.
 
-- [ ] **Passo 1:** `infra/modules/aws-environment/data.tf`
+- [x] **Passo 1:** `infra/modules/aws-environment/data.tf`
 
 ```hcl
 # ---------- Security group compartilhado pelos serviços de dados ----------
@@ -585,7 +587,7 @@ resource "aws_msk_cluster" "this" {
 }
 ```
 
-- [ ] **Passo 2:** adicione ao fim de `infra/modules/aws-environment/outputs.tf`
+- [x] **Passo 2:** adicione ao fim de `infra/modules/aws-environment/outputs.tf`
 
 ```hcl
 output "database_url" {
@@ -602,7 +604,7 @@ output "kafka_brokers" {
 }
 ```
 
-- [ ] **Passo 3:** repasse as saídas, adicionando ao fim da raiz `infra/envs/staging/aws/main.tf`
+- [x] **Passo 3:** repasse as saídas, adicionando ao fim da raiz `infra/envs/staging/aws/main.tf`
 
 ```hcl
 output "database_url" {
@@ -619,7 +621,7 @@ output "kafka_brokers" {
 }
 ```
 
-- [ ] **Passo 4: aplique e teste a conectividade a partir de dentro do cluster**
+- [x] **Passo 4: aplique e teste a conectividade a partir de dentro do cluster**
 
 ```bash
 terraform -chdir=infra/envs/staging/aws apply          # +25–35 min (MSK)
@@ -634,7 +636,7 @@ kubectl --context shortener-staging run netcheck --rm -it --restart=Never --imag
 
 Esperado: três `succeeded` e um handshake TLS, mostrando `Protocol version` e o certificado da Amazon.
 
-- [ ] **Passo 5: commit e PR** (`git add infra && git commit -m "infra: RDS, Valkey e MSK"`, push e `gh pr create --fill`).
+- [x] **Passo 5: commit e PR** (`git add infra && git commit -m "infra: RDS, Valkey e MSK"`, push e `gh pr create --fill`).
 
 **Pronto quando:** os três serviços respondem a partir de um pod do cluster.
 
@@ -654,7 +656,7 @@ Esperado: três `succeeded` e um handshake TLS, mostrando `Protocol version` e o
 - **ArgoCD com "app of apps" mínimo**, via chart `argocd-apps`, agora com **duas** Applications (`shortener-api` e `shortener-web`).
 - **O Terraform entrega ao cluster os endereços, segredos e identificadores que mudam a cada ambiente/conta.** Assim o Git não precisa conhecê-los. Inclui o OIDC (Cognito), que vem do bootstrap da conta.
 
-- [ ] **Passo 1: descubra as versões atuais dos charts e anote**
+- [x] **Passo 1: descubra as versões atuais dos charts e anote**
 
 ```bash
 helm repo add eks https://aws.github.io/eks-charts
@@ -672,19 +674,19 @@ helm search repo argo/argo-rollouts
 
 Confira também as chaves de valores que este plano usa no chart do Argo Rollouts: `helm show values argo/argo-rollouts --version <versão> | grep -nE '^installCRDs|^keepCRDs|^serviceAccount|^dashboard|extraEnv'`. A fonte da verdade é o [`values.yaml` do chart](https://github.com/argoproj/argo-helm/blob/main/charts/argo-rollouts/values.yaml).
 
-- [ ] **Passo 2:** `infra/modules/platform/versions.tf`
+- [x] **Passo 2:** `infra/modules/platform/versions.tf`
 
 ```hcl
 terraform {
   required_providers {
     helm       = { source = "hashicorp/helm", version = "~> 3.0" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.38" }
+    kubernetes = { source = "hashicorp/kubernetes", version = "~> 3.0" }
     random     = { source = "hashicorp/random", version = "~> 3.6" }
   }
 }
 ```
 
-- [ ] **Passo 3:** `infra/modules/platform/variables.tf` (preencha `chart_versions` com o resultado do Passo 1)
+- [x] **Passo 3:** `infra/modules/platform/variables.tf` (preencha `chart_versions` com o resultado do Passo 1)
 
 ```hcl
 variable "environment" {
@@ -784,7 +786,7 @@ variable "chart_versions" {
 }
 ```
 
-- [ ] **Passo 4:** `infra/modules/platform/controllers.tf`
+- [x] **Passo 4:** `infra/modules/platform/controllers.tf`
 
 ```hcl
 resource "helm_release" "aws_lb_controller" {
@@ -848,7 +850,7 @@ resource "helm_release" "external_dns" {
 
 O `txtOwnerId` continua essencial mesmo com contas separadas: os dois clusters escrevem na **mesma zona** da Cloudflare, que não sabe nada de contas AWS.
 
-- [ ] **Passo 5:** `infra/modules/platform/rollouts.tf`
+- [x] **Passo 5:** `infra/modules/platform/rollouts.tf`
 
 ```hcl
 # Argo Rollouts: controller + CRDs (Rollout, AnalysisTemplate, AnalysisRun, Experiment).
@@ -885,7 +887,7 @@ resource "helm_release" "argo_rollouts" {
 
 Repare: a chave do service account no chart é `serviceAccount` **na raiz** dos valores (não `controller.serviceAccount`), e os CRDs usam `installCRDs` (não `crds.install`, que é a convenção do chart do ArgoCD). Confira no `helm show values` da versão que você fixou.
 
-- [ ] **Passo 6:** `infra/modules/platform/app-config.tf`
+- [x] **Passo 6:** `infra/modules/platform/app-config.tf`
 
 ```hcl
 resource "kubernetes_namespace_v1" "app" {
@@ -950,7 +952,7 @@ resource "kubernetes_config_map_v1" "oidc" {
 }
 ```
 
-- [ ] **Passo 7:** `infra/modules/platform/argocd.tf`
+- [x] **Passo 7:** `infra/modules/platform/argocd.tf`
 
 ```hcl
 resource "helm_release" "argocd" {
@@ -1020,7 +1022,7 @@ Notas:
 - **Health de `Rollout`:** o ArgoCD já sabe avaliar `argoproj.io/Rollout` sem configuração extra: a verificação Lua vem embutida ([`resource_customizations/argoproj.io/Rollout/health.lua`](https://github.com/argoproj/argo-cd/tree/master/resource_customizations/argoproj.io/Rollout)). Um Rollout pausado no meio de um canary aparece como `Suspended`, e a Application fica `Suspended` até ele terminar; isso importa na Fase 8.
 - As duas Applications compartilham o namespace `shortener`, mas cada uma só gerencia (e faz prune de) os recursos que ela mesma criou.
 
-- [ ] **Passo 8:** `infra/modules/platform/outputs.tf`
+- [x] **Passo 8:** `infra/modules/platform/outputs.tf`
 
 ```hcl
 output "api_key" {
@@ -1029,7 +1031,7 @@ output "api_key" {
 }
 ```
 
-- [ ] **Passo 9:** raiz `infra/envs/staging/platform/main.tf`
+- [x] **Passo 9:** raiz `infra/envs/staging/platform/main.tf`
 
 ```hcl
 terraform {
@@ -1037,7 +1039,7 @@ terraform {
   required_providers {
     aws        = { source = "hashicorp/aws", version = "~> 6.0" }
     helm       = { source = "hashicorp/helm", version = "~> 3.0" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.38" }
+    kubernetes = { source = "hashicorp/kubernetes", version = "~> 3.0" }
     random     = { source = "hashicorp/random", version = "~> 3.6" }
   }
 
@@ -1155,28 +1157,30 @@ Notas sobre a raiz:
 - O `terraform_remote_state` não herda o profile do backend: o `profile` precisa estar no `config` de cada um, senão ele tenta ler o bucket com as credenciais padrão (de outra conta) e dá `AccessDenied`.
 - O provider `helm` v3 usa `kubernetes = { ... }` (atributo, com `=`). Na v2 era um bloco `kubernetes { ... }`. Se encontrar exemplos antigos na internet, é por isso que diferem.
 
-- [ ] **Passo 10: aplique e confira**
+- [x] **Passo 10: aplique e confira**
 
 ```bash
 terraform -chdir=infra/envs/staging/platform init
 terraform -chdir=infra/envs/staging/platform apply     # ~5–7 min
-K="kubectl --context shortener-staging"
-$K -n kube-system get deploy aws-load-balancer-controller metrics-server
-$K top nodes                                            # o metrics-server está funcionando
-$K -n argo-rollouts get deploy,sa                       # deploy argo-rollouts Available, SA argo-rollouts
-$K get crd rollouts.argoproj.io analysistemplates.argoproj.io
-$K -n argo-rollouts exec deploy/argo-rollouts -- env | grep -E 'AWS_REGION|AWS_CONTAINER_CREDENTIALS_FULL_URI'
-# as duas variáveis presentes = região configurada e Pod Identity injetada
-$K -n shortener get cm shortener-infra shortener-oidc
-$K -n shortener get cm shortener-oidc -o yaml           # 6 chaves OIDC_*, com o pool de staging
-$K -n argocd get applications                           # shortener-api e shortener-web
+k() { kubectl --context shortener-staging "$@"; }   # função, não variável: funciona no zsh e no bash
+k -n kube-system get deploy aws-load-balancer-controller metrics-server
+k top nodes                                            # o metrics-server está funcionando
+k -n argo-rollouts get deploy,sa                       # deploy argo-rollouts Available, SA argo-rollouts
+k get crd rollouts.argoproj.io analysistemplates.argoproj.io
+k -n argo-rollouts get pod -l app.kubernetes.io/name=argo-rollouts -o json \
+  | jq -r '.items[0].spec.containers[0].env[].name'
+# AWS_REGION (nosso extraEnv) e AWS_CONTAINER_CREDENTIALS_FULL_URI (injetada pela Pod Identity).
+# Não use "exec ... env": a imagem do controller é distroless, sem shell nem o binário env.
+k -n shortener get cm shortener-infra shortener-oidc
+k -n shortener get cm shortener-oidc -o yaml           # 6 chaves OIDC_*, com o pool de staging
+k -n argocd get applications                           # shortener-api e shortener-web
 ```
 
 As duas Applications aparecem com `SYNC STATUS` `Unknown` e uma condição `ComparisonError` ("app path does not exist"), porque `apps/api/overlays/staging` e `apps/web/overlays/staging` só são criados na Fase 7. Isso é esperado.
 
 Opcional: instale o plugin do Argo Rollouts, que a Fase 7 usa (`brew install argoproj/tap/kubectl-argo-rollouts`), e rode `kubectl argo rollouts version`.
 
-- [ ] **Passo 11: commit e PR** (`git add infra && git commit -m "infra: plataforma com Argo Rollouts, OIDC e Applications do ArgoCD"`, push e `gh pr create --fill`).
+- [x] **Passo 11: commit e PR** (`git add infra && git commit -m "infra: plataforma com Argo Rollouts, OIDC e Applications do ArgoCD"`, push e `gh pr create --fill`).
 
 **Pronto quando:** os controllers estão `Available`, `kubectl top nodes` funciona, o ConfigMap `shortener-oidc` tem as 6 chaves e as Applications `shortener-api` e `shortener-web` existem (o erro de path é esperado até a Fase 7).
 

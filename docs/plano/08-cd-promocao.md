@@ -541,10 +541,10 @@ scripts/up.sh prod         # ~40 min; dá para rodar em outro terminal ao mesmo 
 - [ ] **Passo 2: smoke test de prod pelo terminal**
 
 ```bash
-K="kubectl --context shortener-prod -n shortener"
+k() { kubectl --context shortener-prod -n shortener "$@"; }   # função, não variável: funciona no zsh e no bash
 kubectl --context shortener-prod -n argocd get applications     # shortener-api e shortener-web Synced/Healthy
 kubectl argo rollouts --context shortener-prod -n shortener list rollouts   # api e web Healthy
-$K get pods,hpa                                                   # api 2 réplicas (HPA), worker 2, web 2
+k get pods,hpa                                                   # api 2 réplicas (HPA), worker 2, web 2
 
 export API=https://api.shortener.fabricioroglio.com
 export SHORT=https://shortener.fabricioroglio.com
