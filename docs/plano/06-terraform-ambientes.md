@@ -1073,7 +1073,7 @@ data "terraform_remote_state" "aws" {
   }
 }
 
-# Saídas do bootstrap PERMANENTE da conta de staging (Fase 5): Cognito e certificado.
+# Saídas do bootstrap PERMANENTE da conta deste ambiente (Fase 5): Cognito e certificado.
 data "terraform_remote_state" "bootstrap" {
   backend = "s3"
   config = {
@@ -1195,7 +1195,7 @@ Opcional: instale o plugin do Argo Rollouts, que a Fase 7 usa (`brew install arg
 - **Um ALB, dois donos.** Com IngressGroup (Fase 7), o ALB só some quando **os dois** Ingresses (`api` e `web`) somem. Por isso o `down` apaga as duas Applications antes de esperar o ALB.
 - **Cada script trabalha numa conta só:** todos exportam `AWS_PROFILE=shortener-$ENV`, então a AWS CLI e o `kubectl` falam com a conta do ambiente. O Terraform usa os profiles explícitos das raízes.
 
-- [ ] **Passo 1:** `scripts/up.sh`
+- [x] **Passo 1:** `scripts/up.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -1227,7 +1227,7 @@ kubectl --context "$CTX" -n argocd wait application/shortener-api application/sh
 echo ">> Pronto. API key: terraform -chdir=infra/envs/$ENV/platform output -raw api_key"
 ```
 
-- [ ] **Passo 2:** `scripts/down.sh`
+- [x] **Passo 2:** `scripts/down.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -1289,7 +1289,7 @@ echo ">> [4/4] Procurando sobras"
 
 Se o cluster já não existir (um `down` que caiu no meio, por exemplo), o script pula o passo 1 e vai direto aos destroys. Se o destroy da plataforma falhar porque o cluster sumiu, rode `terraform -chdir=infra/envs/$ENV/platform state list` e remova do state o que não existe mais (`terraform state rm`), e então siga com a camada aws.
 
-- [ ] **Passo 3:** `scripts/leftovers.sh`
+- [x] **Passo 3:** `scripts/leftovers.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -1310,6 +1310,28 @@ check() { # $1 = descrição, $2 = saída do comando
   fi
 }
 
+# A API de tags é um índice com atraso: recursos apagados há pouco (NAT, security groups e
+# regras) continuam listados por minutos ou até 1h, e a chave KMS do EKS fica listada nos
+# 30 dias de PendingDeletion (sem custo). Para esses tipos, confirma no serviço dono.
+still_exists() { # $1 = ARN
+  local arn="$1" id="${1##*/}" out
+  case "$arn" in
+    *:security-group/*)      out=$(aws ec2 describe-security-groups --region $R --group-ids "$id" --query 'SecurityGroups[0].GroupId' --output text 2>&1) ;;
+    *:security-group-rule/*) out=$(aws ec2 describe-security-group-rules --region $R --security-group-rule-ids "$id" --query 'SecurityGroupRules[0].SecurityGroupRuleId' --output text 2>&1) ;;
+    *:natgateway/*)          out=$(aws ec2 describe-nat-gateways --region $R --nat-gateway-ids "$id" --query 'NatGateways[0].State' --output text 2>&1) ;;
+    *:loadbalancer/*)        out=$(aws elbv2 describe-load-balancers --region $R --load-balancer-arns "$arn" --query 'LoadBalancers[0].State.Code' --output text 2>&1) ;;
+    *:targetgroup/*)         out=$(aws elbv2 describe-target-groups --region $R --target-group-arns "$arn" --query 'TargetGroups[0].TargetGroupName' --output text 2>&1) ;;
+    *:kms:*)                 out=$(aws kms describe-key --region $R --key-id "$id" --query 'KeyMetadata.KeyState' --output text 2>&1) ;;
+    *) return 0 ;; # outros tipos: confia no índice
+  esac
+  case "$out" in *NotFound*|deleted|PendingDeletion) return 1 ;; *) return 0 ;; esac
+}
+
+confirmed() { # lê ARNs (separados por tab) e devolve só os que ainda existem
+  local arn
+  for arn in $(cat); do still_exists "$arn" && echo "$arn"; done
+}
+
 # Recursos criados pelo Terraform deste ambiente.
 # EXCLUI ACM e Cognito de propósito: o certificado e o user pool são do bootstrap PERMANENTE
 # da conta (Fase 5), que também usa default_tags Environment=<env> e ManagedBy=terraform.
@@ -1318,12 +1340,12 @@ check "Recursos do Terraform com tag Environment=$ENV (fora o bootstrap: ACM e C
   "$(aws resourcegroupstaggingapi get-resources --region $R \
     --tag-filters "Key=ManagedBy,Values=terraform" "Key=Environment,Values=$ENV" \
     --query "ResourceTagMappingList[?!contains(ResourceARN, ':acm:') && !contains(ResourceARN, ':cognito-idp:')].ResourceARN" \
-    --output text)"
+    --output text | confirmed)"
 # Recursos criados pelo AWS Load Balancer Controller (ALB, target groups, security groups).
 check "Recursos do Load Balancer Controller (cluster shortener-$ENV)" \
   "$(aws resourcegroupstaggingapi get-resources --region $R \
     --tag-filters "Key=elbv2.k8s.aws/cluster,Values=shortener-$ENV" \
-    --query 'ResourceTagMappingList[].ResourceARN' --output text)"
+    --query 'ResourceTagMappingList[].ResourceARN' --output text | confirmed)"
 check "Load balancers" "$(aws elbv2 describe-load-balancers --region $R --query 'LoadBalancers[].LoadBalancerName' --output text)"
 check "NAT Gateways ativos" "$(aws ec2 describe-nat-gateways --region $R --filter Name=state,Values=available,pending \
   --query 'NatGateways[].NatGatewayId' --output text)"
@@ -1363,7 +1385,7 @@ Observações sobre o script:
 - **Por que excluir ACM e Cognito pelo ARN, e não por tag:** o bootstrap da conta (Fase 5) usa as mesmas `default_tags` (`Environment=<env>`, `ManagedBy=terraform`). Em vez de mudar a Fase 5 para ganhar uma tag `Layer=bootstrap`, o filtro aqui pula os ARNs `:acm:` e `:cognito-idp:`, que são exatamente os recursos permanentes do bootstrap. Se um dia a camada efêmera passar a criar certificado ou user pool, este filtro precisa ser revisto.
 - O bucket de state não aparece: ele vive na conta shared.
 - Os registros de validação do ACM (`_xxxx.shortener...`) são permanentes e não aparecem na checagem de DNS, porque ela consulta só os nomes exatos dos 3 hosts e os TXT do external-dns.
-- A API de tags é "eventualmente consistente". Logo após um destroy, ARNs já apagados podem aparecer por alguns minutos; rode de novo antes de se preocupar.
+- **A API de tags é um índice com atraso, não a fonte da verdade.** Logo depois do destroy, ela ainda lista o NAT Gateway, os security groups e as regras que acabaram de ser apagados (o NAT por até 1h). Ela também lista a chave KMS do EKS durante os 30 dias de `PendingDeletion`, um estado que não é cobrado. Por isso, o `still_exists` confirma esses tipos no serviço dono (`NotFound`, `deleted` ou `PendingDeletion` = não é sobra). Para os outros tipos, ele confia no índice: na dúvida, acusa.
 
 - [ ] **Passo 4: teste o ciclo completo**
 
@@ -1375,7 +1397,7 @@ scripts/up.sh staging       # o "wait" do passo 3 vai expirar por enquanto (os o
 scripts/down.sh staging
 ```
 
-- [ ] **Passo 5: commit e PR.** `git add scripts infra && git commit -m "infra: scripts up/down/leftovers por conta de ambiente"`, push e `gh pr create --fill`.
+- [x] **Passo 5: commit e PR.** `git add scripts infra && git commit -m "infra: scripts up/down/leftovers por conta de ambiente"`, push e `gh pr create --fill`.
 
 **Pronto quando:** `down.sh` termina com "OK: nenhuma sobra encontrada" e `up.sh` recria tudo sem intervenção manual (até o wait das Applications).
 
@@ -1385,20 +1407,20 @@ scripts/down.sh staging
 
 O bootstrap da conta de prod (Fase 5) já existe; o que falta são as raízes efêmeras.
 
-- [ ] **Passo 1: copie as raízes**
+- [x] **Passo 1: copie as raízes**
 
 ```bash
 cp -r infra/envs/staging infra/envs/prod
 rm -rf infra/envs/prod/*/.terraform
 ```
 
-- [ ] **Passo 2: ajuste `infra/envs/prod/aws/main.tf`**
+- [x] **Passo 2: ajuste `infra/envs/prod/aws/main.tf`**
   - Backend: `key = "envs/prod/aws.tfstate"` (bucket e `profile = "shortener-shared"` continuam iguais)
   - Provider: `profile = "shortener-prod"` e `allowed_account_ids = ["<PROD_ACCOUNT_ID>"]`
   - `Environment = "prod"` no `default_tags`
   - No módulo: `environment = "prod"` e `vpc_cidr = "10.20.0.0/16"`
   - Nós: `node_min_size = 2`, `node_max_size = 4` e `node_desired_size = 2`
-- [ ] **Passo 3: ajuste `infra/envs/prod/platform/main.tf`**
+- [x] **Passo 3: ajuste `infra/envs/prod/platform/main.tf`**
   - Backend: `key = "envs/prod/platform.tfstate"`
   - Provider: `profile = "shortener-prod"` e `allowed_account_ids = ["<PROD_ACCOUNT_ID>"]`
   - `Environment = "prod"` no `default_tags`
@@ -1406,13 +1428,13 @@ rm -rf infra/envs/prod/*/.terraform
   - Remote state `bootstrap`: `key = "bootstrap/prod.tfstate"`
   - `local.k8s_exec`: `"--profile", "shortener-prod"`
   - No módulo: `environment = "prod"`
-- [ ] **Passo 4: confira que não sobrou nada de staging**
+- [x] **Passo 4: confira que não sobrou nada de staging**
 
 ```bash
 grep -rn "staging" infra/envs/prod      # deve voltar vazio
 ```
 
-- [ ] **Passo 5: valide sem aplicar**
+- [x] **Passo 5: valide sem aplicar**
 
 ```bash
 for d in infra/envs/prod/aws infra/envs/prod/platform; do
@@ -1420,7 +1442,7 @@ for d in infra/envs/prod/aws infra/envs/prod/platform; do
 done
 ```
 
-- [ ] **Passo 6: commit e PR** (`git add infra/envs/prod && git commit -m "infra: raízes de prod na conta de prod"`).
+- [x] **Passo 6: commit e PR** (`git add infra/envs/prod && git commit -m "infra: raízes de prod na conta de prod"`).
 
 **Pronto quando:** `validate` passa nas duas raízes de prod e o `grep` não acha `staging`.
 
@@ -1437,7 +1459,7 @@ done
 - **`validate` não autentica.** Ele confere sintaxe, tipos, referências e argumentos dos providers e módulos, sem chamar nenhuma API (nem a da AWS, nem o state remoto). Por isso `profile = "shortener-<env>"` e `allowed_account_ids` no provider não quebram o CI: são só atributos de configuração, que seriam usados no `plan`/`apply`. O runner do GitHub não tem `~/.aws/config` e isso não importa.
 - O `plan` em PR, com credenciais via GitHub OIDC → papel na conta, fica nas extensões.
 
-- [ ] **Passo 1:** `.github/workflows/ci.yml`
+- [x] **Passo 1:** `.github/workflows/ci.yml`
 
 ```yaml
 name: CI
@@ -1479,7 +1501,7 @@ Notas:
 - `infra/bootstrap/modules/account-baseline` e `infra/modules/*` não entram no loop: módulos são validados através das raízes que os usam.
 - Se a raiz de organização usar um provider com `profile = "shortener-mgmt"`, vale o mesmo raciocínio: `validate` não autentica.
 
-- [ ] **Passo 2: abra o PR e veja o job verde.** Rode `terraform fmt -recursive infra` localmente antes, se o `fmt -check` reclamar.
+- [x] **Passo 2: abra o PR e veja o job verde.** Rode `terraform fmt -recursive infra` localmente antes, se o `fmt -check` reclamar.
 
 **Pronto quando:** o PR mostra o check `infra` verde.
 
@@ -1488,8 +1510,8 @@ Notas:
 ## Checkpoint da Fase 6
 
 - [ ] `scripts/up.sh staging` cria tudo na conta de staging e `scripts/down.sh staging` destrói tudo sem sobras
-- [ ] O ConfigMap `shortener-oidc` tem as 6 chaves e as Applications `shortener-api` e `shortener-web` existem (esperando os overlays da Fase 7)
-- [ ] O controller do Argo Rollouts roda com a Pod Identity (credenciais e `AWS_REGION` no ambiente do pod)
+- [x] O ConfigMap `shortener-oidc` tem as 6 chaves e as Applications `shortener-api` e `shortener-web` existem (esperando os overlays da Fase 7)
+- [x] O controller do Argo Rollouts roda com a Pod Identity (credenciais e `AWS_REGION` no ambiente do pod)
 - [ ] Você sabe explicar por que existem duas camadas de Terraform, por que a ordem do destroy importa e o que a trava `allowed_account_ids` evita
-- [ ] O CI do `shortener-deploy` valida todas as raízes
-- [ ] **O ambiente está derrubado** se você não for continuar agora
+- [x] O CI do `shortener-deploy` valida todas as raízes
+- [x] **O ambiente está derrubado** se você não for continuar agora

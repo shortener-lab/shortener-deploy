@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  infra:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+      - name: terraform fmt
+        run: terraform fmt -check -recursive infra
+      - name: terraform validate
+        run: |
+          for dir in infra/organization infra/bootstrap/shared infra/bootstrap/staging infra/bootstrap/prod \
+                     infra/envs/*/aws infra/envs/*/platform; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false >/dev/null
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
