@@ -167,6 +167,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Como quebrava:** o plano dizia que o `ec2 describe-vpcs` em `us-west-2` daria `AccessDenied`. O EC2 responde `UnauthorizedOperation` (medido em 22/10/2026). A frase que importa, "*with an explicit deny in a service control policy*", vem igual. Quem procurasse a palavra exata acharia que a SCP não funcionou.
 - **Correção:** o passo mostra o código real e explica que o nome do erro varia por serviço.
 
+### C10. Flags numa variável quebravam no zsh. *Defeito do plano (Fase 6)*
+- **Onde:** `docs/plano/06-terraform-ambientes.md`, Tarefa 6.1, Passo 1.
+- **Como quebrava:** o passo fazia `P="--profile shortener-staging --region us-east-1"` e depois `aws eks ... $P`. No bash, o `$P` vira 4 argumentos. No zsh (o shell padrão do macOS), vira **um**, e a AWS CLI responde `Unknown options: --profile shortener-staging --region us-east-1`.
+- **Correção:** o passo exporta `AWS_PROFILE` e `AWS_REGION`, que valem para qualquer shell. A rotina de início de sessão também passou a ler o token da Cloudflare do Keychain, como na Fase 5.
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)

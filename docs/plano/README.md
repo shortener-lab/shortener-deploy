@@ -39,7 +39,7 @@
 | 2 | [02-api-auth.md](02-api-auth.md) | api | Login OIDC na api, dono do link, `/me/links`, CORS, IdP mock no compose (**concluída**) | 0 | 3–4h |
 | 3 | [03-frontend.md](03-frontend.md) | web | Painel React com login, testes, e2e local e imagem nginx com config de runtime (**concluída**) | 0 | 5–6h |
 | 4 | [04-ci.md](04-ci.md) | os 3 | Org e três repos no GitHub; CI em todo PR e imagem no GHCR a cada merge (api e web) (**concluída**) | 0 | 1,5–2h |
-| 5 | [05-aws-organizacao-bootstrap.md](05-aws-organizacao-bootstrap.md) | deploy | Organização com 4 contas, SCPs, SSO, state remoto, certificados e Cognito por conta | ~0 | 2–3h |
+| 5 | [05-aws-organizacao-bootstrap.md](05-aws-organizacao-bootstrap.md) | deploy | Organização com 4 contas, SCPs, SSO, state remoto, certificados e Cognito por conta (**concluída**) | ~0 | 2–3h |
 | 6 | [06-terraform-ambientes.md](06-terraform-ambientes.md) | deploy | Staging sobe e desce com um comando, na sua própria conta, com Argo Rollouts | ~US$ 0,38/h | 3–4h |
 | 7 | [07-kubernetes-gitops.md](07-kubernetes-gitops.md) | deploy | api (canary) e web (blue-green) no ar em staging via ArgoCD | ~US$ 0,38/h | 3h |
 | 8 | [08-cd-promocao.md](08-cd-promocao.md) | os 3 | CD entre repos, promoção por app com aprovação, canary com bug abortando sozinho | ~US$ 0,76/h | 3h |

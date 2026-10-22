@@ -23,7 +23,7 @@
 cd ~/Documents/projects/shortener-deploy
 aws sso login --sso-session shortener        # um login vale para os 4 profiles (8h)
 export AWS_PROFILE=shortener-staging         # para os comandos manuais da AWS CLI
-export CLOUDFLARE_API_TOKEN='...'            # do gerenciador de senhas
+export CLOUDFLARE_API_TOKEN=$(security find-generic-password -s shortener-cloudflare-token -w)  # do Keychain (Tarefa 5.5)
 export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
 export CLOUDFLARE_ZONE_ID='<ZONE_ID>'        # usado pelo leftovers.sh
 aws sts get-caller-identity --query Account --output text   # deve mostrar <STAGING_ACCOUNT_ID>
@@ -77,12 +77,14 @@ Os blocos abaixo usam `terraform-aws-modules/vpc` v6, `terraform-aws-modules/eks
 - [ ] **Passo 1: consulte as versões disponíveis na conta de staging** (com a sessão SSO ativa)
 
 ```bash
-P="--profile shortener-staging --region us-east-1"
-aws eks describe-cluster-versions $P --output table      # use a mais nova em STANDARD_SUPPORT
-aws kafka list-kafka-versions $P --query 'KafkaVersions[?Status==`ACTIVE`].Version'   # use 3.9.x
-aws rds describe-db-engine-versions $P --engine postgres --query "DBEngineVersions[?starts_with(EngineVersion,'17')].EngineVersion"
-aws elasticache describe-cache-engine-versions $P --engine valkey --query 'CacheEngineVersions[].EngineVersion'
+export AWS_PROFILE=shortener-staging AWS_REGION=us-east-1
+aws eks describe-cluster-versions --query 'clusterVersions[].[clusterVersion,versionStatus,endOfStandardSupportDate]' --output text   # use a mais nova em STANDARD_SUPPORT
+aws kafka list-kafka-versions --query 'KafkaVersions[?Status==`ACTIVE`].Version'   # use 3.9.x
+aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[?starts_with(EngineVersion,'17')].EngineVersion"
+aws elasticache describe-cache-engine-versions --engine valkey --query 'CacheEngineVersions[].EngineVersion'
 ```
+
+Não guarde as flags numa variável (`P="--profile ... --region ..."` e depois `aws ... $P`). O zsh, shell padrão do macOS, não divide variáveis em palavras como o bash: o `$P` chega ao `aws` como **um** argumento, e ele responde `Unknown options`. As variáveis `AWS_PROFILE` e `AWS_REGION` resolvem sem esse problema.
 
 Anote a versão do Kubernetes; ela vai no `terraform.tfvars` de cada ambiente.
 
