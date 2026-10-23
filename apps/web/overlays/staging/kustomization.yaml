@@ -3,19 +3,16 @@ kind: Kustomization
 namespace: shortener
 resources:
   - ../../base
-
 images:
   - name: shortener-web
     newName: ghcr.io/shortener-lab/shortener-web
-    newTag: sha-e97e32c            # o CD atualiza esta linha automaticamente (Fase 8)
-
+    newTag: sha-fb5dfe6 # o CD atualiza esta linha automaticamente (Fase 8)
 configMapGenerator:
   - name: shortener-web-config
     literals:
       - API_BASE_URL=https://api.shortener-staging.fabricioroglio.com
-
 patches:
-  - target: { kind: Ingress, name: web }
+  - target: {kind: Ingress, name: web}
     patch: |-
       - op: replace
         path: /spec/rules/0/host
@@ -23,7 +20,7 @@ patches:
       - op: add
         path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
         value: arn:aws:acm:us-east-1:785072247212:certificate/82bb35b1-cb78-47f6-a3a4-732872c96196
-  - target: { group: argoproj.io, kind: Rollout, name: web }
+  - target: {group: argoproj.io, kind: Rollout, name: web}
     patch: |-
       - op: replace
         path: /spec/replicas
