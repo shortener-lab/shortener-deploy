@@ -3,12 +3,10 @@ kind: Kustomization
 namespace: shortener
 resources:
   - ../../base
-
 images:
   - name: shortener-api
     newName: ghcr.io/shortener-lab/shortener-api
-    newTag: sha-7d2b6ed            # o CD atualiza esta linha automaticamente (Fase 8)
-
+    newTag: sha-17d93d0 # o CD atualiza esta linha automaticamente (Fase 8)
 configMapGenerator:
   - name: shortener-api-config
     literals:
@@ -17,13 +15,11 @@ configMapGenerator:
       - LOG_LEVEL=debug
       - CACHE_TTL_SECONDS=3600
       - RATE_LIMIT_PER_MINUTE=30
-
 replicas:
   - name: worker
     count: 1
-
 patches:
-  - target: { kind: Ingress, name: api }
+  - target: {kind: Ingress, name: api}
     patch: |-
       - op: replace
         path: /spec/rules/0/host
@@ -34,7 +30,7 @@ patches:
       - op: add
         path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
         value: arn:aws:acm:us-east-1:785072247212:certificate/82bb35b1-cb78-47f6-a3a4-732872c96196
-  - target: { kind: HorizontalPodAutoscaler, name: api }
+  - target: {kind: HorizontalPodAutoscaler, name: api}
     patch: |-
       - op: replace
         path: /spec/minReplicas
