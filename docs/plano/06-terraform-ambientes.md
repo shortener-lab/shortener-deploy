@@ -1220,9 +1220,13 @@ echo ">> [2/3] Camada plataforma ($ENV)"
 terraform -chdir="$ROOT/infra/envs/$ENV/platform" init -input=false
 terraform -chdir="$ROOT/infra/envs/$ENV/platform" apply -input=false -auto-approve
 
-echo ">> [3/3] Aguardando o ArgoCD deixar as duas apps saudáveis"
-kubectl --context "$CTX" -n argocd wait application/shortener-api application/shortener-web \
-  --for=jsonpath='{.status.health.status}'=Healthy --timeout=20m
+echo ">> [3/3] Aguardando o ArgoCD sincronizar e deixar as duas apps saudáveis"
+# Só "Healthy" não basta: uma Application sem nenhum recurso (path inexistente, render vazio)
+# também é Healthy. "Synced" garante que o que está no Git foi aplicado.
+for COND in '{.status.sync.status}'=Synced '{.status.health.status}'=Healthy; do
+  kubectl --context "$CTX" -n argocd wait application/shortener-api application/shortener-web \
+    --for=jsonpath="$COND" --timeout=20m
+done
 
 echo ">> Pronto. API key: terraform -chdir=infra/envs/$ENV/platform output -raw api_key"
 ```
