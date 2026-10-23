@@ -994,7 +994,7 @@ Esperado: `Summary: N resources found ... - Valid: N, Invalid: 0, Errors: 0, Ski
 - O `pipefail` faz um erro do `kubectl kustomize` (YAML quebrado) falhar o passo, em vez de o kubeconform validar uma entrada vazia.
 - Se a `main` do `shortener-deploy` tem ruleset exigindo checks, inclua `manifests` na lista de checks obrigatórios.
 
-- [ ] **Passo 9: commit e merge** (via PR, por causa do ruleset)
+- [x] **Passo 9: commit e merge** (via PR, por causa do ruleset)
 
 ```bash
 git switch -c fase-7-manifests
@@ -1014,7 +1014,7 @@ Agora as duas Applications do ArgoCD têm o que aplicar.
 
 ## Tarefa 7.4: primeiro deploy em staging
 
-- [ ] **Passo 1: suba staging**
+- [x] **Passo 1: suba staging**
 
 ```bash
 aws sso login --sso-session shortener
@@ -1023,7 +1023,7 @@ scripts/up.sh staging        # termina quando shortener-api e shortener-web est�
 
 Se staging já estava de pé (por exemplo, desde a Fase 6), o ArgoCD pega o merge sozinho em até 3 minutos. Para não esperar, rode `kubectl --context shortener-staging -n argocd annotate application shortener-api shortener-web argocd.argoproj.io/refresh=normal --overwrite`.
 
-- [ ] **Passo 2: acompanhe pelo ArgoCD**
+- [x] **Passo 2: acompanhe pelo ArgoCD**
 
 ```bash
 kubectl --context shortener-staging -n argocd port-forward svc/argocd-server 8080:80 &
@@ -1034,7 +1034,7 @@ open http://localhost:8080     # usuário admin + a senha acima
 
 Na UI, abra `shortener-api` e observe a ordem: o Job `setup` (PreSync) roda; depois aparecem o `Rollout` `api` (com a ReplicaSet e os pods embaixo), o `Deployment` `worker`, os Services, o HPA e o Ingress. O ArgoCD entende a saúde de um `Rollout`: `Healthy` quando está totalmente promovido, `Progressing` durante um canary e `Suspended` quando está pausado num passo. Abra também `shortener-web`.
 
-- [ ] **Passo 3: acompanhe pelo plugin do Argo Rollouts**
+- [x] **Passo 3: acompanhe pelo plugin do Argo Rollouts**
 
 ```bash
 kubectl argo rollouts get rollout api -n shortener --context shortener-staging --watch
@@ -1046,7 +1046,7 @@ No primeiro deploy, o `api` aparece com `Strategy: Canary`, `Status: ✔ Healthy
 
 Opcional, para quem gosta de ver em tela: `kubectl argo rollouts dashboard --context shortener-staging` e abra `http://localhost:3100`.
 
-- [ ] **Passo 4: confira cada peça pelo terminal**
+- [x] **Passo 4: confira cada peça pelo terminal**
 
 ```bash
 k() { kubectl --context shortener-staging -n shortener "$@"; }   # função, não variável: funciona no zsh e no bash
@@ -1062,7 +1062,7 @@ for h in shortener-staging api.shortener-staging app.shortener-staging; do
 done
 ```
 
-- [ ] **Passo 5: smoke test da api** (máquina a máquina, com a API key)
+- [x] **Passo 5: smoke test da api** (máquina a máquina, com a API key)
 
 ```bash
 export SHORT=https://shortener-staging.fabricioroglio.com
@@ -1082,7 +1082,7 @@ curl -s -o /dev/null -w '%{http_code}\n' $API/links/$CODE/stats       # 401 sem 
 curl -sI http://shortener-staging.fabricioroglio.com/healthz | head -3  # 301 → https
 ```
 
-- [ ] **Passo 6: smoke test do web e do CORS**
+- [x] **Passo 6: smoke test do web e do CORS**
 
 ```bash
 curl -s $APP/healthz; echo                               # ok
@@ -1104,7 +1104,7 @@ curl -si -X OPTIONS $API/links -H 'Origin: https://evil.example' \
   -H 'Access-Control-Request-Method: POST' | grep -i access-control-allow-origin || echo "bloqueado: ok"
 ```
 
-- [ ] **Passo 7: o teste de verdade, no navegador**
+- [x] **Passo 7: o teste de verdade, no navegador**
 
 1. Abra `https://app.shortener-staging.fabricioroglio.com` e clique em **Entrar**. Você vai para o Hosted UI do Cognito (`shortener-staging-<sufixo>.auth.us-east-1.amazoncognito.com`).
 2. Clique em **Sign up**, cadastre um e-mail seu (pode ser um alias com `+`) e uma senha, e confirme com o **código que chega por e-mail**. O remetente padrão do Cognito tem limite diário baixo; se o código não chegar, olhe o spam e espere alguns minutos.
@@ -1114,7 +1114,7 @@ curl -si -X OPTIONS $API/links -H 'Origin: https://evil.example' \
 6. Com o DevTools aberto (aba Network): as chamadas vão para `api.shortener-staging…` com `Authorization: Bearer …`, sem erros de CORS no console e sem nenhum 404 em `/assets/`.
 7. O usuário fica no user pool do bootstrap da conta (Fase 5), então continua existindo depois do `down.sh`.
 
-- [ ] **Passo 8: veja o GitOps em ação (selfHeal)**
+- [x] **Passo 8: veja o GitOps em ação (selfHeal)**
 
 ```bash
 kubectl --context shortener-staging -n shortener scale deploy/worker --replicas=0
@@ -1134,7 +1134,7 @@ kubectl --context shortener-staging -n shortener get deploy worker -w   # em seg
 
 **Por quê:** a análise `api-error-rate` trata "sem dados" como sucesso. Se o `SEARCH` não encontrar o target group (nome diferente do esperado) ou se o controller não conseguir falar com o CloudWatch, você só descobriria na Fase 8, com um canary com bug passando ou abortando por motivo errado. Aqui você testa a mesma consulta contra o target group **estável**, que já recebe tráfego real.
 
-- [ ] **Passo 1: confira os nomes dos target groups**
+- [x] **Passo 1: confira os nomes dos target groups**
 
 ```bash
 export AWS_PROFILE=shortener-staging
@@ -1146,7 +1146,7 @@ aws elbv2 describe-target-groups --query 'TargetGroups[].TargetGroupName' --outp
 
 Se o nome não tiver `apicanar`, ajuste o termo `TargetGroup=apicanar` do `analysis-template.yaml` para um token que apareça só no nome do canary.
 
-- [ ] **Passo 2: gere tráfego por 3 minutos e consulte o CloudWatch como o Rollouts faz**
+- [x] **Passo 2: gere tráfego por 3 minutos e consulte o CloudWatch como o Rollouts faz**
 
 ```bash
 end=$((SECONDS+180)); while [ $SECONDS -lt $end ]; do curl -s -o /dev/null $SHORT/$CODE; sleep 0.5; done &
@@ -1167,13 +1167,13 @@ aws cloudwatch get-metric-data --metric-data-queries file:///tmp/cw-queries.json
   --query 'MetricDataResults[].[Label,StatusCode,Values]'
 ```
 
-Esperado: `stable-requests` com valores perto de 120 por minuto e `stable-5xx-ratio` com valores `0.0`. Esse é o caso "sem nenhum 5xx": a métrica de 5xx nem existe, e a razão precisa dar 0, não vazio nem erro.
+Esperado: `stable-requests` com valores entre 40 e 120 por minuto (cada `curl` leva cerca de 1 s, então o laço não chega a 2 por segundo; medido em 23/10/2026: 40 a 44) e `stable-5xx-ratio` com valores `0.0`. Esse é o caso "sem nenhum 5xx": a métrica de 5xx nem existe, e a razão precisa dar 0, não vazio nem erro.
 
 Troque `apistabl` por `apicanar` e rode de novo: `Values` vazio (o canary não recebe tráfego fora de um deploy). É o caso "sem dados = sucesso".
 
 > **Se `stable-5xx-ratio` vier vazio (mas `stable-requests` tiver valores):** a soma de uma busca sem resultados não está virando zero. Troque, no template e no teste, a query `errors` por `SUM([SEARCH('…HTTPCode_Target_5XX_Count… TargetGroup=apicanar', 'Sum', 60), requests * 0])` (o `requests * 0` garante uma série com zeros nos minutos com tráfego) e repita. **Se vier erro na `Messages`:** leia a mensagem; o mais comum é aspas mal escapadas.
 
-- [ ] **Passo 3: rode a análise de dentro do cluster** (prova a permissão do controller via Pod Identity e a região)
+- [x] **Passo 3: rode a análise de dentro do cluster** (prova a permissão do controller via Pod Identity e a região)
 
 Crie um AnalysisRun avulso, com as mesmas queries do template, apontado para o target group **estável**. Ele fica fora do Git e do ArgoCD, e você apaga no fim.
 
@@ -1216,7 +1216,7 @@ Esperado: `phase: Successful` e, em `metricResults[0].measurements[0].value`, al
 kubectl --context shortener-staging -n shortener delete analysisrun teste-error-rate-stable
 ```
 
-- [ ] **Passo 4 (só se os passos 2 ou 3 não ficarem verdes): plano B documentado**
+- [x] **Passo 4 (só se os passos 2 ou 3 não ficarem verdes): plano B documentado** (não foi preciso: CloudWatch e AnalysisRun ok em 23/10/2026)
 
 Se a consulta ao CloudWatch não ficar confiável, troque a análise da api por um teste ativo contra o Service `api-canary`, com o provider `job`, como no web. É mais fraco, porque não olha o tráfego real dos usuários, só o que o Job manda. Mas é determinístico e não depende de métricas. Crie `apps/api/base/analysis-template-smoke.yaml`, adicione-o aos `resources` da base e troque `templateName: api-error-rate` por `api-canary-smoke` nos dois passos `analysis` do `rollout.yaml`:
 
@@ -1271,7 +1271,7 @@ spec:
 
 Anote no PR qual análise ficou ativa. A Fase 8 funciona com qualquer uma das duas; muda só o que "canary com bug" precisa quebrar para ser pego.
 
-- [ ] **Passo 5: encerre a sessão** com `scripts/down.sh staging`, a menos que vá direto para a Fase 8. O `down.sh` apaga as duas Applications antes do destroy. O ALB compartilhado só some quando **os dois** Ingresses somem, e só então o external-dns remove os 3 registros.
+- [x] **Passo 5: encerre a sessão** com `scripts/down.sh staging`, a menos que vá direto para a Fase 8. O `down.sh` apaga as duas Applications antes do destroy. O ALB compartilhado só some quando **os dois** Ingresses somem, e só então o external-dns remove os 3 registros.
 
 **Pronto quando:**
 - A consulta do CloudWatch devolve razão `0` para o target group estável com tráfego e vazio para o canary sem tráfego, **ou** o plano B está no lugar.
@@ -1308,10 +1308,10 @@ Anote no PR qual análise ficou ativa. A Fase 8 funciona com qualquer uma das du
 
 ## Checkpoint da Fase 7
 
-- [ ] Os 3 hosts de staging respondem em HTTPS, todos pelo mesmo ALB
-- [ ] Você se cadastrou no Cognito, criou um link pelo painel, abriu o link curto e viu o clique nas stats
+- [x] Os 3 hosts de staging respondem em HTTPS, todos pelo mesmo ALB
+- [x] Você se cadastrou no Cognito, criou um link pelo painel, abriu o link curto e viu o clique nas stats
 - [ ] `kubectl argo rollouts get rollout api` e `... web` mostram `Healthy`, e você sabe explicar por que o primeiro deploy não teve canary nem blue-green
 - [ ] Você sabe explicar por que a api é canary, o web é blue-green e o worker é rolling update (e o que é o problema dos assets com hash)
 - [ ] Você sabe explicar o caminho de uma requisição: DNS (Cloudflare) → ALB (TLS, regra por host, ação com pesos) → target group estável ou canary → pod (IP direto) → Valkey/RDS → Kafka → worker
-- [ ] A análise do canary foi testada contra métricas reais (Tarefa 7.5)
-- [ ] **O ambiente está derrubado** (`scripts/down.sh staging`) se você não for continuar agora
+- [x] A análise do canary foi testada contra métricas reais (Tarefa 7.5)
+- [x] **O ambiente está derrubado** (`scripts/down.sh staging`) se você não for continuar agora

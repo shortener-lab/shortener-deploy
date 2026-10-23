@@ -47,17 +47,17 @@
   - **Dá para dar bypass só para ele** no ruleset (Tarefa 8.2).
 - **Por que não uma deploy key:** ela também funciona (SSH, escrita em um repo, existe até `actor_type: DeployKey` no ruleset). Mas é uma credencial **de longa duração** que nunca expira, não fala com a API do GitHub (o `promote.yml` e o `gh api` precisariam de outra credencial) e não tem identidade: o commit fica no nome de quem você configurar no `git config`. Com o App, uma chave cobre os 3 repos de origem com tokens curtos.
 
-- [ ] **Passo 1: crie o App pela UI, na org.** `https://github.com/organizations/<org>/settings/apps` (Settings da org → **Developer settings** → **GitHub Apps**) → **New GitHub App**. Criado na org, o App pertence à "empresa", não ao seu usuário:
+- [x] **Passo 1: crie o App pela UI, na org.** `https://github.com/organizations/<org>/settings/apps` (Settings da org → **Developer settings** → **GitHub Apps**) → **New GitHub App**. Criado na org, o App pertence à "empresa", não ao seu usuário:
   - **GitHub App name:** `<org>-deployer` (o nome é global no GitHub; por isso o prefixo com a org).
   - **Homepage URL:** `https://github.com/<org>/shortener-deploy`.
   - **Webhook:** desmarque **Active**. O App não recebe eventos; ele só é usado para gerar tokens.
   - **Permissions** → **Repository permissions** → **Contents: Read and write**. **Metadata: Read-only** entra sozinho (é obrigatório). Nada mais.
   - **Where can this GitHub App be installed?** → **Only on this account** (a conta aqui é a org).
   - **Create GitHub App.**
-- [ ] **Passo 2: anote os IDs.** Na página do App (seção *About*): **App ID** (um número, ex.: `1234567`) e **Client ID** (começa com `Iv23...`).
-- [ ] **Passo 3: gere a chave privada.** Mesma página → **Private keys** → **Generate a private key**. O navegador baixa um `.pem`.
-- [ ] **Passo 4: instale o App só no `shortener-deploy`.** Menu lateral do App → **Install App** → `<org>` → **Only select repositories** → `shortener-deploy` → **Install**.
-- [ ] **Passo 5: guarde ID e chave uma vez, na org, liberados para os 3 repos**
+- [x] **Passo 2: anote os IDs.** Na página do App (seção *About*): **App ID** (um número, ex.: `1234567`) e **Client ID** (começa com `Iv23...`).
+- [x] **Passo 3: gere a chave privada.** Mesma página → **Private keys** → **Generate a private key**. O navegador baixa um `.pem`.
+- [x] **Passo 4: instale o App só no `shortener-deploy`.** Menu lateral do App → **Install App** → `<org>` → **Only select repositories** → `shortener-deploy` → **Install**.
+- [x] **Passo 5: guarde ID e chave uma vez, na org, liberados para os 3 repos**
 
 ```bash
 APP_ID=<App ID>                 # número
@@ -86,13 +86,13 @@ Por que duas variáveis:
 
 Os dois IDs não são segredo, por isso ficam como *variables*. Só a chave é *secret*.
 
-- [ ] **Passo 6: tire o `.pem` do disco.** Ou guarde-o no gerenciador de senhas e depois apague, ou apenas apague (se perder, gere outra chave na página do App e revogue a antiga):
+- [x] **Passo 6: tire o `.pem` do disco.** Ou guarde-o no gerenciador de senhas e depois apague, ou apenas apague (se perder, gere outra chave na página do App e revogue a antiga):
 
 ```bash
 rm -P "$PEM"        # -P sobrescreve antes de apagar (macOS)
 ```
 
-- [ ] **Passo 7: descubra o id do usuário-bot** (o commit precisa dele para aparecer com o avatar do App):
+- [x] **Passo 7: descubra o id do usuário-bot** (o commit precisa dele para aparecer com o avatar do App):
 
 ```bash
 gh api "/users/<org>-deployer[bot]" --jq .id    # ex.: 987654321
@@ -113,7 +113,7 @@ O e-mail do bot é `<esse id>+<org>-deployer[bot]@users.noreply.github.com`. Os 
 - **`strict_required_status_checks_policy: false`:** com `true`, todo PR precisaria estar atualizado com a `main` antes do merge. Como o bot commita na `main` o tempo todo, você viveria clicando em "Update branch".
 - **`required_approving_review_count: 0`:** você é a única pessoa no projeto e o GitHub não deixa aprovar o próprio PR. O portão humano de prod é o environment `production` (Tarefa 8.4).
 
-- [ ] **Passo 1: crie o ruleset pela API**
+- [x] **Passo 1: crie o ruleset pela API**
 
 ```bash
 APP_ID=$(gh variable get DEPLOYER_APP_ID --org <org>)
@@ -160,7 +160,7 @@ EOF
 
 O `actor_id` de um `Integration` é o **App ID** (número), não o Client ID.
 
-- [ ] **Passo 2: confira**
+- [x] **Passo 2: confira**
 
 ```bash
 gh api /repos/<org>/shortener-deploy/rulesets --jq '.[] | {id, name, enforcement}'
@@ -170,7 +170,7 @@ gh api /repos/<org>/shortener-deploy/rules/branches/main --jq '.[].type'
 
 Ou na UI: repo → **Settings** → **Rules** → **Rulesets**. Em *Bypass list* aparece o App.
 
-- [ ] **Passo 3: prove que você (humano) não passa**
+- [x] **Passo 3: prove que você (humano) não passa**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy
@@ -374,12 +374,12 @@ curl -s https://api.shortener-staging.fabricioroglio.com/healthz   # {"status":"
 - **"Só promove o que passou por staging":** o `validate` procura no histórico o commit `deploy(staging): <app> <tag>`. Isso vale também para rollback com uma tag antiga, porque ela passou por staging no passado.
 - **O token do App também aqui:** o `GITHUB_TOKEN` não está na bypass list do ruleset, então o push dele na `main` seria recusado.
 
-- [ ] **Passo 1: crie o environment.** `shortener-deploy` → **Settings** → **Environments** → **New environment** → `production`:
+- [x] **Passo 1: crie o environment.** `shortener-deploy` → **Settings** → **Environments** → **New environment** → `production`:
   - **Required reviewers:** você. Deixe *Prevent self-review* desmarcado (você é o único revisor).
   - **Deployment branches and tags:** *Selected branches and tags* → `main`.
   - (Opcional, mais rígido) tire o `shortener-deploy` da lista do secret da org (`gh secret set DEPLOYER_PRIVATE_KEY --org <org> --visibility selected --repos shortener-api,shortener-web < "$PEM"`) e crie a chave como *Environment secret* de `production`. Assim, só jobs aprovados conseguem gerar token neste repo.
 
-- [ ] **Passo 2: crie** `.github/workflows/promote.yml`
+- [x] **Passo 2: crie** `.github/workflows/promote.yml`
 
 ```yaml
 name: Promote to production

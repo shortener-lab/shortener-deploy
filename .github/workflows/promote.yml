@@ -1,0 +1,112 @@
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "App a promover"
+        type: choice
+        options: [api, web]
+        required: true
+      tag:
+        description: "Tag a promover (vazio = a que está em staging agora)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-${{ inputs.app }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0               # histórico inteiro, para achar o deploy(staging)
+
+      - name: Valida as entradas e define a tag
+        id: tag
+        env:
+          APP: ${{ inputs.app }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$APP" =~ ^(api|web)$ ]] || { echo "app inválida: $APP"; exit 1; }
+          export IMAGE="shortener-$APP"
+          TAG="${INPUT_TAG:-$(yq '.images[] | select(.name == strenv(IMAGE)) | .newTag' "apps/$APP/overlays/staging/kustomization.yaml")}"
+          [[ "$TAG" =~ ^sha-[0-9a-f]{7}$ ]] || { echo "tag inválida: $TAG"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "### Promover $APP $TAG para prod" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Confere que a imagem existe no GHCR
+        env:
+          APP: ${{ inputs.app }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: docker manifest inspect "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/shortener-$APP:$TAG" > /dev/null
+
+      - name: Confere que a tag passou por staging
+        env:
+          APP: ${{ inputs.app }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          git log --format=%s origin/main -- "apps/$APP/overlays/staging" \
+            | grep -Fxq "deploy(staging): $APP $TAG" \
+            || { echo "$APP $TAG nunca foi para staging"; exit 1; }
+
+  promote:
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: production          # pausa aqui até você aprovar
+    permissions: {}
+    steps:
+      - name: Gera token do GitHub App (só shortener-deploy, ~1h)
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.DEPLOYER_CLIENT_ID }}
+          private-key: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: shortener-deploy
+
+      - name: Identidade do bot
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          BOT_ID=$(gh api "/users/${SLUG}[bot]" --jq .id)
+          echo "name=${SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${BOT_ID}+${SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Atualiza o overlay de prod, commit e push
+        env:
+          APP: ${{ inputs.app }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          BOT_NAME: ${{ steps.bot.outputs.name }}
+          BOT_EMAIL: ${{ steps.bot.outputs.email }}
+        run: |
+          [[ "$APP" =~ ^(api|web)$ && "$TAG" =~ ^sha-[0-9a-f]{7}$ ]] || exit 1
+          export IMAGE="shortener-$APP"
+          yq -i '(.images[] | select(.name == strenv(IMAGE))).newTag = strenv(TAG)' \
+            "apps/$APP/overlays/prod/kustomization.yaml"
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          if git diff --quiet; then echo "prod já está em $APP $TAG"; exit 0; fi
+          git commit -am "deploy(prod): $APP $TAG"
+          for attempt in 1 2 3 4 5; do
+            git push origin HEAD:main && exit 0
+            sleep $((attempt * 3))
+            git pull --rebase origin main
+          done
+          exit 1
