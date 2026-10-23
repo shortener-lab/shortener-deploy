@@ -6,7 +6,7 @@ resources:
 images:
   - name: shortener-web
     newName: ghcr.io/shortener-lab/shortener-web
-    newTag: sha-fb5dfe6 # só muda pelo workflow "Promote" (Fase 8)
+    newTag: sha-c6851ab # só muda pelo workflow "Promote" (Fase 8)
 configMapGenerator:
   - name: shortener-web-config
     literals:
