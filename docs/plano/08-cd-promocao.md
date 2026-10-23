@@ -201,7 +201,7 @@ Os dois `release.yml` já têm (Fase 4) os jobs `ci` e `image`, e o job `image` 
 - **`concurrency` por app:** dois merges seguidos no `shortener-api` fazem fila (o GitHub mantém só o mais novo pendente); um deploy da api e um do web podem correr juntos porque mexem em arquivos diferentes. O `git pull --rebase` resolve a corrida entre eles.
 - **`permissions: {}`:** o `GITHUB_TOKEN` desse job não precisa de nada; quem escreve é o token do App.
 
-- [ ] **Passo 1 (`shortener-api`): adicione o job** ao final de `.github/workflows/release.yml`
+- [x] **Passo 1 (`shortener-api`): adicione o job** ao final de `.github/workflows/release.yml`
 
 ```yaml
   deploy-staging:
@@ -266,7 +266,7 @@ Os dois `release.yml` já têm (Fase 4) os jobs `ci` e `image`, e o job `image` 
           exit 1
 ```
 
-- [ ] **Passo 2 (`shortener-web`): adicione o job** ao final de `.github/workflows/release.yml`
+- [x] **Passo 2 (`shortener-web`): adicione o job** ao final de `.github/workflows/release.yml`
 
 ```yaml
   deploy-staging:
@@ -333,14 +333,14 @@ Os dois `release.yml` já têm (Fase 4) os jobs `ci` e `image`, e o job `image` 
 
 As únicas diferenças entre os dois jobs são o grupo de `concurrency`, o nome lógico da imagem no `yq`, o caminho do overlay e a mensagem do commit. Está repetido de propósito: cada repo é dono do seu pipeline.
 
-- [ ] **Passo 3: leve cada mudança por PR** (branch → PR → CI verde → merge), em cada um dos dois repos. O próprio merge dispara o Release, que já usa o job novo.
+- [x] **Passo 3: leve cada mudança por PR** (branch → PR → CI verde → merge), em cada um dos dois repos. O próprio merge dispara o Release, que já usa o job novo.
 
 ```bash
 gh run watch --repo <org>/shortener-api       # ci → image → deploy-staging
 gh run watch --repo <org>/shortener-web
 ```
 
-- [ ] **Passo 4: confira os commits no `shortener-deploy`**
+- [x] **Passo 4: confira os commits no `shortener-deploy`**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy && git switch main && git pull
@@ -351,7 +351,7 @@ git log --format='%h %an <%ae> %s' -4
 
 No GitHub, o commit aparece com o avatar do App. Se aparecer um usuário genérico sem avatar, o e-mail está errado (provavelmente você usou o App ID no lugar do id do usuário-bot).
 
-- [ ] **Passo 5: com staging de pé, veja o ArgoCD aplicar**
+- [x] **Passo 5: com staging de pé, veja o ArgoCD aplicar**
 
 ```bash
 kubectl --context shortener-staging -n argocd get applications     # shortener-api e shortener-web Synced/Healthy
@@ -496,9 +496,9 @@ jobs:
           exit 1
 ```
 
-- [ ] **Passo 3: leve o workflow por PR** no `shortener-deploy` (o ruleset exige) e faça o merge.
+- [x] **Passo 3: leve o workflow por PR** no `shortener-deploy` (o ruleset exige) e faça o merge.
 
-- [ ] **Passo 4: promova api e web uma vez cada, antes de subir prod.** Prod ainda está desligado, então só o Git muda. Assim, o primeiro sync de prod já usa tags que existem.
+- [x] **Passo 4: promova api e web uma vez cada, antes de subir prod.** Prod ainda está desligado, então só o Git muda. Assim, o primeiro sync de prod já usa tags que existem.
 
 ```bash
 R=<org>/shortener-deploy
@@ -512,7 +512,7 @@ git pull && git log --oneline -4
 # deploy(prod): api sha-aaa1111
 ```
 
-- [ ] **Passo 5: teste as validações** (cada um deve falhar no `validate`, **sem** pedir aprovação):
+- [x] **Passo 5: teste as validações** (cada um deve falhar no `validate`, **sem** pedir aprovação):
 
 ```bash
 gh workflow run promote.yml --repo $R -f app=api -f tag='sha-zzzzzzz'      # regex
@@ -528,7 +528,7 @@ gh workflow run promote.yml --repo $R -f app=web -f tag='x"; id; "'        # inj
 
 Prod vive na conta `shortener-prod`. Ela tem VPC, EKS, RDS, ElastiCache, MSK, ACM e **Cognito próprios**.
 
-- [ ] **Passo 1: suba os dois ambientes** (no `shortener-deploy`)
+- [x] **Passo 1: suba os dois ambientes** (no `shortener-deploy`)
 
 ```bash
 aws sso login --sso-session shortener          # um login vale para todos os profiles shortener-*
@@ -538,7 +538,7 @@ scripts/up.sh staging      # se não estiver de pé
 scripts/up.sh prod         # ~40 min; dá para rodar em outro terminal ao mesmo tempo
 ```
 
-- [ ] **Passo 2: smoke test de prod pelo terminal**
+- [x] **Passo 2: smoke test de prod pelo terminal**
 
 ```bash
 k() { kubectl --context shortener-prod -n shortener "$@"; }   # função, não variável: funciona no zsh e no bash
@@ -582,7 +582,7 @@ curl -s -o /dev/null -w '%{http_code}\n' $API/me/links -H "Authorization: Bearer
 - **A análise precisa de tráfego:** a métrica é `HTTPCode_Target_5XX_Count / RequestCount` do target group do canary. Sem requisições, a conta não tem o que medir e passa como sucesso. Por isso o k6 fica ligado o tempo todo.
 - **Passos do Rollout `api`:** `setWeight 10` → `pause 2m` → análise `api-error-rate` → `setWeight 50` → `pause 2m` → análise → 100%. São ~6 a 8 minutos depois que o ArgoCD aplica.
 
-- [ ] **Passo 1: crie o teste de carga** `load/redirect.js` no `shortener-deploy`
+- [x] **Passo 1: crie o teste de carga** `load/redirect.js` no `shortener-deploy`
 
 ```js
 import http from 'k6/http';
