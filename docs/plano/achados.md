@@ -191,6 +191,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Como quebrava:** o plano previa que a espera expiraria antes da Fase 7 (as pastas `apps/*/overlays/staging` não existiam). No `up.sh` real de 22/10/2026, ela respondeu `condition met` na hora: o ArgoCD mostrava as duas Applications com `SYNC STATUS Unknown` e `HEALTH STATUS Healthy`. Uma Application sem recursos não tem nada doente, então conta como `Healthy`. Na Fase 7, o script poderia dizer "Pronto" antes de o ArgoCD terminar o primeiro sync.
 - **Correção:** o script espera `sync.status = Synced` e depois `health.status = Healthy`.
 
+### C14. O usuário da imagem da api não conseguia ler o CA do RDS. *Importante (Fase 7)*
+- **Onde:** `shortener-api/Dockerfile` (`ADD --chmod=644 <url> /app/certs/rds-global-bundle.pem`).
+- **Como quebrava:** o `ADD` criava a pasta `/app/certs` e aplicava o `644` nela também. Sem o bit `x`, o usuário `node` não entra na pasta. No primeiro deploy em staging (23/10/2026), o Job `setup` (PreSync) falhou 4 vezes com `EACCES: permission denied, open '/app/certs/rds-global-bundle.pem'`, e o ArgoCD não aplicou o resto da api. Ninguém tinha visto antes porque nada lia o arquivo: o Postgres do compose não usa TLS, e a conferência da Fase 4 só imprimia o `APP_VERSION`.
+- **Correção:** `RUN mkdir -p /app/certs` (755) antes do `ADD`, e um passo no job `docker` do CI que lê o arquivo como `node` (o mesmo comando falha na imagem `sha-6b58bd5`). PR shortener-api#4, imagem `sha-7d2b6ed`. O overlay de prod continua na `sha-6b58bd5` até a promoção da Fase 8.
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)
