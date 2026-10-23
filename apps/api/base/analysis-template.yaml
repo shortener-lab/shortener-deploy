@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: api-error-rate
+spec:
+  metrics:
+    - name: error-rate
+      interval: 1m
+      count: 3
+      failureLimit: 1
+      consecutiveErrorLimit: 2
+      # Sem dados (canary sem tráfego) conta como sucesso.
+      successCondition: "len(result) == 0 || all(result[0].Values, {# < 0.01})"
+      provider:
+        cloudWatch:
+          interval: 2m            # janela olhada a cada medição (StartTime = agora - 2m)
+          metricDataQueries:
+            - id: errors
+              expression: >-
+                SUM(SEARCH('{AWS/ApplicationELB,LoadBalancer,TargetGroup} MetricName="HTTPCode_Target_5XX_Count" TargetGroup=apicanar', 'Sum', 60))
+              returnData: false
+            - id: requests
+              expression: >-
+                SUM(SEARCH('{AWS/ApplicationELB,LoadBalancer,TargetGroup} MetricName="RequestCount" TargetGroup=apicanar', 'Sum', 60))
+              returnData: false
+            - id: ratio
+              label: canary-5xx-ratio
+              expression: errors / requests
+              returnData: true    # só esta volta em "result"

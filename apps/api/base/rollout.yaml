@@ -1,0 +1,80 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: api
+  labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: api }
+spec:
+  # sem "replicas": o HPA controla
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: { app.kubernetes.io/component: api }
+  strategy:
+    canary:
+      stableService: api-stable          # recebe 100-N% do tráfego
+      canaryService: api-canary          # recebe N%
+      trafficRouting:
+        alb:
+          ingress: api                   # Ingress onde o Rollouts escreve a ação com pesos
+          servicePort: 80                # porta dos Services api-stable/api-canary
+          # rootService omitido = stableService. O backend do Ingress tem de ser "api-stable"
+      maxSurge: "25%"
+      maxUnavailable: 0                  # nunca perde capacidade durante a troca
+      scaleDownDelaySeconds: 30          # depois de promover, a RS antiga vive 30s (o ALB termina de mover)
+      abortScaleDownDelaySeconds: 30     # depois de abortar, o canary vive 30s (requisições em andamento terminam)
+      # dynamicStableScale: false (padrão). Ver explicação abaixo.
+      steps:
+        - setWeight: 10
+        - pause: { duration: 2m }
+        - analysis:
+            templates:
+              - templateName: api-error-rate
+        - setWeight: 50
+        - pause: { duration: 2m }
+        - analysis:
+            templates:
+              - templateName: api-error-rate
+        # fim dos passos = promoção: 100% para a versão nova, que vira a estável
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: api }
+    spec:
+      terminationGracePeriodSeconds: 45   # preStop (10s) + shutdown do app (até 25s) + folga
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000                   # usuário "node" da imagem
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app.kubernetes.io/component: api }
+      containers:
+        - name: api
+          image: shortener-api            # nome lógico: o Kustomize troca por ghcr.io/<org>/shortener-api:sha-<7>
+          command: ["node", "dist/api.js"]
+          ports:
+            - { name: http, containerPort: 3000 }
+          envFrom:
+            - configMapRef: { name: shortener-infra }
+            - configMapRef: { name: shortener-api-config }   # vira shortener-api-config-<hash>
+            - configMapRef: { name: shortener-oidc }
+            - secretRef: { name: shortener-secrets }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              sleep: { seconds: 10 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }

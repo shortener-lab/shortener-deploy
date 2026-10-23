@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: shortener
+resources:
+  - ../../base
+
+images:
+  - name: shortener-api
+    newName: ghcr.io/shortener-lab/shortener-api
+    newTag: sha-6b58bd5            # o CD atualiza esta linha automaticamente (Fase 8)
+
+configMapGenerator:
+  - name: shortener-api-config
+    literals:
+      - PUBLIC_BASE_URL=https://shortener-staging.fabricioroglio.com
+      - CORS_ALLOWED_ORIGINS=https://app.shortener-staging.fabricioroglio.com
+      - LOG_LEVEL=debug
+      - CACHE_TTL_SECONDS=3600
+      - RATE_LIMIT_PER_MINUTE=30
+
+replicas:
+  - name: worker
+    count: 1
+
+patches:
+  - target: { kind: Ingress, name: api }
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: shortener-staging.fabricioroglio.com
+      - op: replace
+        path: /spec/rules/1/host
+        value: api.shortener-staging.fabricioroglio.com
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
+        value: arn:aws:acm:us-east-1:785072247212:certificate/82bb35b1-cb78-47f6-a3a4-732872c96196
+  - target: { kind: HorizontalPodAutoscaler, name: api }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3

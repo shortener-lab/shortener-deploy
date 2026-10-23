@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: shortener
+resources:
+  - ../../base
+
+images:
+  - name: shortener-web
+    newName: ghcr.io/shortener-lab/shortener-web
+    newTag: sha-e97e32c            # só muda pelo workflow "Promote" (Fase 8)
+
+configMapGenerator:
+  - name: shortener-web-config
+    literals:
+      - API_BASE_URL=https://api.shortener.fabricioroglio.com
+
+patches:
+  - target: { kind: Ingress, name: web }
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: app.shortener.fabricioroglio.com
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
+        value: arn:aws:acm:us-east-1:849110176337:certificate/d9c977e1-70f9-4d28-b31a-6d7bc18039ca
+  - target: { group: argoproj.io, kind: Rollout, name: web }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2

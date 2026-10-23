@@ -186,6 +186,11 @@ Atualize o status aqui quando corrigir. Uma correção entra com teste: escreva 
 - **Como quebrava:** no primeiro `down.sh` (22/10/2026, 76 recursos destruídos), a checagem por tag listou 8 "sobras": o NAT Gateway (`deleted` havia minutos), um security group e 5 regras (`NotFound`) e a chave KMS do EKS (`PendingDeletion` por 30 dias, sem custo). Era tudo atraso do índice da API de tags. O script terminava com exit 1 em todo `down`, e um alarme que sempre toca acaba sendo ignorado.
 - **Correção:** a função `still_exists` confirma no serviço dono os tipos que sobram assim (security group, regra, NAT, ALB, target group e chave KMS) e descarta `NotFound`, `deleted` e `PendingDeletion`. Tipos desconhecidos continuam sendo acusados. Testado com um security group existente (acusado) e com os 8 ARNs reais (descartados).
 
+### C13. O `up.sh` dizia "Pronto" sem ter implantado nada. *Defeito do plano (Fase 6)*
+- **Onde:** `scripts/up.sh`, passo [3/3].
+- **Como quebrava:** o plano previa que a espera expiraria antes da Fase 7 (as pastas `apps/*/overlays/staging` não existiam). No `up.sh` real de 22/10/2026, ela respondeu `condition met` na hora: o ArgoCD mostrava as duas Applications com `SYNC STATUS Unknown` e `HEALTH STATUS Healthy`. Uma Application sem recursos não tem nada doente, então conta como `Healthy`. Na Fase 7, o script poderia dizer "Pronto" antes de o ArgoCD terminar o primeiro sync.
+- **Correção:** o script espera `sync.status = Synced` e depois `health.status = Healthy`.
+
 ---
 
 ## Pegadinhas de ambiente (não são bugs do código)

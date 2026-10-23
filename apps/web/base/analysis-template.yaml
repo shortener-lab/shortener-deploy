@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: web-smoke
+spec:
+  args:
+    - name: base-url
+  metrics:
+    - name: smoke
+      count: 1
+      provider:
+        job:
+          metadata:
+            labels: { app.kubernetes.io/name: shortener-web, app.kubernetes.io/component: web-smoke }
+          spec:
+            backoffLimit: 1
+            activeDeadlineSeconds: 120
+            ttlSecondsAfterFinished: 600
+            template:
+              metadata:
+                labels: { app.kubernetes.io/name: shortener-web, app.kubernetes.io/component: web-smoke }
+              spec:
+                restartPolicy: Never
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 100                 # usuário "curl_user" da imagem
+                  seccompProfile: { type: RuntimeDefault }
+                containers:
+                  - name: smoke
+                    image: curlimages/curl:8.22.0   # versão fixada; atualize de propósito, não por acidente
+                    command:
+                      - sh
+                      - -c
+                      - |
+                        set -eu
+                        U="{{args.base-url}}"
+                        echo "1/4 healthz";   curl -fsS --max-time 5 "$U/healthz" > /dev/null
+                        echo "2/4 index";     INDEX=$(curl -fsS --max-time 5 "$U/")
+                        echo "$INDEX" | grep -q '<div id="root">'
+                        echo "3/4 asset";     ASSET=$(echo "$INDEX" | grep -o '/assets/[^"]*\.js' | head -n 1)
+                        test -n "$ASSET"
+                        curl -fsS --max-time 5 -o /dev/null "$U$ASSET"
+                        echo "4/4 config.js"; curl -fsS --max-time 5 "$U/runtime/config.js" | grep -q '__APP_CONFIG__'
+                        echo "smoke ok ($ASSET)"
+                    resources:
+                      requests: { cpu: 10m, memory: 16Mi }
+                      limits: { memory: 32Mi }
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities: { drop: ["ALL"] }

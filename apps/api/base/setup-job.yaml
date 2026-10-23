@@ -1,0 +1,34 @@
+# Hook PreSync: o ArgoCD roda este Job ANTES de aplicar o Rollout e o worker, a cada sync da app shortener-api.
+# Se ele falhar (migration quebrada), o deploy para e a versão antiga continua no ar.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: setup
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: setup }
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: setup
+          image: shortener-api
+          command: ["node", "dist/setup.js"]
+          envFrom:
+            # NÃO usa shortener-api-config: no PreSync o ConfigMap com hash novo ainda não existe
+            # (ele é criado na fase Sync, depois do hook). E o setup não precisa de OIDC.
+            - configMapRef: { name: shortener-infra }
+            - secretRef: { name: shortener-secrets }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }

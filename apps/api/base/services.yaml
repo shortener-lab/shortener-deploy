@@ -1,0 +1,23 @@
+# Os dois Services têm o mesmo selector. O Argo Rollouts acrescenta
+# "rollouts-pod-template-hash" em cada um, em tempo de execução:
+#   api-stable → ReplicaSet estável;  api-canary → ReplicaSet nova (durante o canary).
+# Fora de um canary, os dois apontam para os mesmos pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-stable
+  labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: api }
+spec:
+  selector: { app.kubernetes.io/component: api }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-canary
+  labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: api }
+spec:
+  selector: { app.kubernetes.io/component: api }
+  ports:
+    - { name: http, port: 80, targetPort: http }

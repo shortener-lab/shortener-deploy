@@ -1,0 +1,22 @@
+# Mesmo selector nos dois. O Argo Rollouts acrescenta "rollouts-pod-template-hash":
+#   web-active  → ReplicaSet que os usuários veem
+#   web-preview → ReplicaSet nova, antes da virada (depois da virada, as duas apontam para a mesma)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-active
+  labels: { app.kubernetes.io/name: shortener-web, app.kubernetes.io/component: web }
+spec:
+  selector: { app.kubernetes.io/component: web }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-preview
+  labels: { app.kubernetes.io/name: shortener-web, app.kubernetes.io/component: web }
+spec:
+  selector: { app.kubernetes.io/component: web }
+  ports:
+    - { name: http, port: 80, targetPort: http }
