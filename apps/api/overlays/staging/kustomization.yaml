@@ -7,7 +7,7 @@ resources:
 images:
   - name: shortener-api
     newName: ghcr.io/shortener-lab/shortener-api
-    newTag: sha-6b58bd5            # o CD atualiza esta linha automaticamente (Fase 8)
+    newTag: sha-7d2b6ed            # o CD atualiza esta linha automaticamente (Fase 8)
 
 configMapGenerator:
   - name: shortener-api-config
