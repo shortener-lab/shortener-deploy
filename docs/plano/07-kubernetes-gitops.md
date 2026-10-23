@@ -1310,8 +1310,8 @@ Anote no PR qual análise ficou ativa. A Fase 8 funciona com qualquer uma das du
 
 - [x] Os 3 hosts de staging respondem em HTTPS, todos pelo mesmo ALB
 - [x] Você se cadastrou no Cognito, criou um link pelo painel, abriu o link curto e viu o clique nas stats
-- [x] `kubectl argo rollouts get rollout api` e `... web` mostram `Healthy`, e você sabe explicar por que o primeiro deploy não teve canary nem blue-green
-- [x] Você sabe explicar por que a api é canary, o web é blue-green e o worker é rolling update (e o que é o problema dos assets com hash)
-- [x] Você sabe explicar o caminho de uma requisição: DNS (Cloudflare) → ALB (TLS, regra por host, ação com pesos) → target group estável ou canary → pod (IP direto) → Valkey/RDS → Kafka → worker
+- [ ] `kubectl argo rollouts get rollout api` e `... web` mostram `Healthy`, e você sabe explicar por que o primeiro deploy não teve canary nem blue-green
+- [ ] Você sabe explicar por que a api é canary, o web é blue-green e o worker é rolling update (e o que é o problema dos assets com hash)
+- [ ] Você sabe explicar o caminho de uma requisição: DNS (Cloudflare) → ALB (TLS, regra por host, ação com pesos) → target group estável ou canary → pod (IP direto) → Valkey/RDS → Kafka → worker
 - [x] A análise do canary foi testada contra métricas reais (Tarefa 7.5)
 - [x] **O ambiente está derrubado** (`scripts/down.sh staging`) se você não for continuar agora
