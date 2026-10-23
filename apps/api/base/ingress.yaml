@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  annotations:
+    alb.ingress.kubernetes.io/group.name: shortener          # mesmo ALB do Ingress "web"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip                # ALB fala direto com o IP do pod
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /readyz
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    # certificate-arn: adicionado pelo overlay (o mesmo nos dois Ingresses do grupo)
+    # actions.api-stable: escrita pelo Argo Rollouts. NÃO declare aqui.
+spec:
+  ingressClassName: alb
+  rules:
+    - host: short.placeholder.invalid            # overlay: host curto (só redirect)
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-stable                 # = stableService (rootService padrão)
+                port: { name: use-annotation }   # "leia a ação com pesos da annotation"
+    - host: api.placeholder.invalid              # overlay: api.<host>
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-stable
+                port: { name: use-annotation }

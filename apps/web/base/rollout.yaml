@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: web
+  labels: { app.kubernetes.io/name: shortener-web, app.kubernetes.io/component: web }
+spec:
+  replicas: 1                     # o overlay troca (staging 1, prod 2)
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: { app.kubernetes.io/component: web }
+  strategy:
+    blueGreen:
+      activeService: web-active     # o que o Ingress (e os usuários) usam
+      previewService: web-preview   # só dentro do cluster: alvo do smoke test
+      autoPromotionEnabled: true    # análise passou → vira sozinho
+      prePromotionAnalysis:
+        templates:
+          - templateName: web-smoke
+        args:
+          - name: base-url
+            value: http://web-preview   # o Job roda no mesmo namespace (shortener)
+      scaleDownDelaySeconds: 30     # a versão antiga vive 30s depois da virada
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: shortener-web, app.kubernetes.io/component: web }
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101                  # usuário "nginx" da imagem nginx-unprivileged
+        runAsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app.kubernetes.io/component: web }
+      containers:
+        - name: web
+          image: shortener-web          # nome lógico: o Kustomize troca por ghcr.io/<org>/shortener-web:sha-<7>
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: shortener-oidc }        # usa OIDC_AUTHORITY, OIDC_CLIENT_ID, OIDC_LOGOUT_URL
+            - configMapRef: { name: shortener-web-config }  # API_BASE_URL; vira shortener-web-config-<hash>
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              sleep: { seconds: 5 }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: runtime, mountPath: /usr/share/nginx/html/runtime }   # config.js gerado no start
+            - { name: tmp, mountPath: /tmp }                                 # pid e temporários do nginx
+      volumes:
+        - name: runtime
+          emptyDir: { sizeLimit: 1Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

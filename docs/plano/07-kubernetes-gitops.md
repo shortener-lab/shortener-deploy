@@ -119,7 +119,7 @@ Cada app tem a sua Application no ArgoCD (`shortener-api` e `shortener-web`), as
 - **Os Services `api-stable` e `api-canary` têm o mesmo selector.** O Argo Rollouts acrescenta `rollouts-pod-template-hash: <hash>` em cada um, apontando o estável para a ReplicaSet estável e o canary para a nova. Por isso o selector no Git é "genérico".
 - **Não coloque a annotation `actions.api-stable` no Git.** Ela é do Argo Rollouts. Como ela não está no manifesto desejado, o ArgoCD não a considera diferença; se estivesse, o selfHeal desfaria os pesos no meio do canary. O mesmo vale para o hash que o Rollouts põe nos selectors dos Services.
 
-- [ ] **Passo 1: copie o `rollout-transform.yaml`** (config oficial do Argo Rollouts para Kustomize 5, que é o que vem no `kubectl` e no ArgoCD)
+- [x] **Passo 1: copie o `rollout-transform.yaml`** (config oficial do Argo Rollouts para Kustomize 5, que é o que vem no `kubectl` e no ArgoCD)
 
 ```bash
 mkdir -p apps/api/base apps/web/base
@@ -131,7 +131,7 @@ head -5 apps/api/base/rollout-transform.yaml    # começa com "nameReference:"
 
 O arquivo ensina ao Kustomize onde, dentro de um `Rollout`, `AnalysisTemplate` e `HorizontalPodAutoscaler`, há referências a ConfigMaps, Secrets, Services e ao próprio Rollout. Sem ele, o `configMapGenerator` gera `shortener-api-config-abc123`, mas o Rollout continua pedindo `shortener-api-config`. Ele fica na `base` porque o Kustomize junta as `configurations` das bases com as do overlay, e é no overlay que o ConfigMap é gerado. A Tarefa 7.3 confere isso.
 
-- [ ] **Passo 2:** `apps/api/base/rollout.yaml`
+- [x] **Passo 2:** `apps/api/base/rollout.yaml`
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -223,7 +223,7 @@ Decisões do bloco `canary`:
 - **`abortScaleDownDelaySeconds: 30`** é o padrão, mas fica escrito porque vai importar na Fase 8: no abort, o ALB volta 100% para o estável primeiro, e o canary ainda vive 30s para terminar as requisições em andamento (alinhado com o `deregistration_delay` de 30s do target group). Com `0`, os pods do canary **não** seriam removidos, o que ajuda a investigar um canary com bug (`kubectl logs`), mas exige limpeza manual.
 - **Análise como passo, não em background.** O `analysis` dentro de `steps` bloqueia o avanço até o AnalysisRun terminar: sucesso → próximo passo; falha → abort. A janela de 2 minutos de `pause` antes de cada análise garante que já existam métricas do canary no CloudWatch.
 
-- [ ] **Passo 3:** `apps/api/base/services.yaml`
+- [x] **Passo 3:** `apps/api/base/services.yaml`
 
 ```yaml
 # Os dois Services têm o mesmo selector. O Argo Rollouts acrescenta
@@ -251,7 +251,7 @@ spec:
     - { name: http, port: 80, targetPort: http }
 ```
 
-- [ ] **Passo 4:** `apps/api/base/ingress.yaml` (os hosts e o certificado vêm do overlay)
+- [x] **Passo 4:** `apps/api/base/ingress.yaml` (os hosts e o certificado vêm do overlay)
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -293,7 +293,7 @@ spec:
 
 O AWS Load Balancer Controller cria um target group por Service referenciado na ação. O nome segue o padrão `k8s-<namespace>-<service>-<hash>`, com namespace e service **sem caracteres não alfanuméricos e cortados em 8 caracteres**: `k8s-shortene-apistabl-<10 hex>` e `k8s-shortene-apicanar-<10 hex>`. A análise do canary (Passo 7) depende desse padrão, e a Tarefa 7.5 confere os nomes reais.
 
-- [ ] **Passo 5:** `apps/api/base/hpa.yaml`
+- [x] **Passo 5:** `apps/api/base/hpa.yaml`
 
 ```yaml
 apiVersion: autoscaling/v2
@@ -316,7 +316,7 @@ spec:
 
 O `Rollout` expõe o subresource `scale`, então o HPA funciona como com um Deployment. Durante um canary, o HPA muda `spec.replicas` e o Rollouts recalcula as duas ReplicaSets.
 
-- [ ] **Passo 6:** `apps/api/base/pdb.yaml`
+- [x] **Passo 6:** `apps/api/base/pdb.yaml`
 
 ```yaml
 # Durante manutenção de nó (drain), no máximo 1 pod da api sai por vez.
@@ -332,7 +332,7 @@ spec:
     matchLabels: { app.kubernetes.io/component: api }
 ```
 
-- [ ] **Passo 7:** `apps/api/base/analysis-template.yaml`
+- [x] **Passo 7:** `apps/api/base/analysis-template.yaml`
 
 **Conceitos da análise:**
 - O provider `cloudWatch` do Argo Rollouts chama `GetMetricData` com as `metricDataQueries` que você escreve, olhando para trás `interval` (aqui, 2 minutos). O resultado chega na expressão como `result`: uma lista com um item por query de `returnData: true`, e cada item tem `.Values` (lista de números, um por período de 60s).
@@ -379,7 +379,7 @@ Detalhes que valem saber:
 - O target group do canary é **reaproveitado** entre deploys (é sempre o Service `api-canary`). Se você abortar um canary e disparar outro em menos de 2 minutos, os 5xx do anterior ainda estão na janela. Espere 2 minutos entre tentativas.
 - `HTTPCode_Target_5XX_Count` não conta 502/503/504 gerados pelo **próprio ALB** (pod que não responde). Para o nosso caso (bug que faz a api responder 500), é a métrica certa. Somar `HTTPCode_ELB_5XX_Count` fica como extensão: essa métrica é do load balancer inteiro, não do target group.
 
-- [ ] **Passo 8:** `apps/api/base/worker-deployment.yaml`
+- [x] **Passo 8:** `apps/api/base/worker-deployment.yaml`
 
 ```yaml
 apiVersion: apps/v1
@@ -428,7 +428,7 @@ spec:
 
 O worker sobe a mesma imagem da api. Quando o canary da api começa, o worker já foi trocado por rolling update na mesma sincronização. Como ele só consome eventos com formato estável (`link.clicked`), versões diferentes de api e worker convivendo por alguns minutos não são problema. Se um dia o evento mudar de formato, a mudança também precisa ser compatível com a versão anterior.
 
-- [ ] **Passo 9:** `apps/api/base/setup-job.yaml`
+- [x] **Passo 9:** `apps/api/base/setup-job.yaml`
 
 ```yaml
 # Hook PreSync: o ArgoCD roda este Job ANTES de aplicar o Rollout e o worker, a cada sync da app shortener-api.
@@ -467,7 +467,7 @@ spec:
             capabilities: { drop: ["ALL"] }
 ```
 
-- [ ] **Passo 10:** `apps/api/base/kustomization.yaml`
+- [x] **Passo 10:** `apps/api/base/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -504,7 +504,7 @@ resources:
 - **Root filesystem somente leitura:** o nginx precisa escrever em `/tmp` (pid e arquivos temporários da imagem `nginx-unprivileged`), e o entrypoint precisa escrever o `config.js`. Os dois diretórios viram `emptyDir`; o resto da imagem fica imutável.
 - **Sem HPA:** o web serve arquivos estáticos e gasta quase nada de CPU. As réplicas são fixas por ambiente (staging 1, prod 2), definidas por patch no overlay.
 
-- [ ] **Passo 1:** `apps/web/base/rollout.yaml`
+- [x] **Passo 1:** `apps/web/base/rollout.yaml`
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -581,7 +581,7 @@ spec:
           emptyDir: { sizeLimit: 64Mi }
 ```
 
-- [ ] **Passo 2:** `apps/web/base/services.yaml`
+- [x] **Passo 2:** `apps/web/base/services.yaml`
 
 ```yaml
 # Mesmo selector nos dois. O Argo Rollouts acrescenta "rollouts-pod-template-hash":
@@ -608,7 +608,7 @@ spec:
     - { name: http, port: 80, targetPort: http }
 ```
 
-- [ ] **Passo 3:** `apps/web/base/ingress.yaml`
+- [x] **Passo 3:** `apps/web/base/ingress.yaml`
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -640,7 +640,7 @@ spec:
 
 O web não usa `trafficRouting`: no blue-green, quem troca a versão é o selector do `web-active`, e o ALB só segue os endpoints desse Service. O `web-preview` não aparece em Ingress nenhum, então não fica exposto na internet.
 
-- [ ] **Passo 4:** `apps/web/base/pdb.yaml`
+- [x] **Passo 4:** `apps/web/base/pdb.yaml`
 
 ```yaml
 apiVersion: policy/v1
@@ -653,7 +653,7 @@ spec:
     matchLabels: { app.kubernetes.io/component: web }
 ```
 
-- [ ] **Passo 5:** `apps/web/base/analysis-template.yaml`
+- [x] **Passo 5:** `apps/web/base/analysis-template.yaml`
 
 **Conceitos:**
 - O provider **`job`** cria um `Job` do Kubernetes. Se ele terminar com código 0, a medição é sucesso; senão, falha. Com `count: 1` e `failureLimit: 0` (padrão), uma falha basta para o Rollout **não** virar o tráfego. O `web-active` continua na versão antiga, e o Rollout fica `Degraded` até você corrigir no Git.
@@ -715,7 +715,7 @@ spec:
                       capabilities: { drop: ["ALL"] }
 ```
 
-- [ ] **Passo 6:** `apps/web/base/kustomization.yaml`
+- [x] **Passo 6:** `apps/web/base/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -746,7 +746,7 @@ resources:
 - **Réplicas do web por patch:** o campo `replicas:` do Kustomize também funcionaria (o `rollout-transform.yaml` ensina isso), mas um patch explícito em `/spec/replicas` deixa claro o que está acontecendo. O worker (Deployment) usa `replicas:` normalmente.
 - **Os dois Ingresses usam o mesmo certificado:** ele cobre os 3 hosts da conta (host curto + SANs `api.` e `app.`).
 
-- [ ] **Passo 1: pegue os valores**
+- [x] **Passo 1: pegue os valores**
 
 ```bash
 aws sso login --sso-session shortener        # o state fica na conta shared; o comando abaixo lê de lá
@@ -760,7 +760,7 @@ gh run list --repo <org>/shortener-web --workflow Release --limit 1
 
 Se o `output` reclamar de backend não inicializado, rode `terraform -chdir=infra/bootstrap/<env> init` antes (o backend usa o profile `shortener-shared`, como na Fase 5).
 
-- [ ] **Passo 2:** `apps/api/overlays/staging/kustomization.yaml`
+- [x] **Passo 2:** `apps/api/overlays/staging/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -811,7 +811,7 @@ patches:
 
 `CORS_ALLOWED_ORIGINS` é comparado **byte a byte** com o header `Origin` do navegador: `https://`, sem barra no final, sem porta.
 
-- [ ] **Passo 3:** `apps/api/overlays/prod/kustomization.yaml`
+- [x] **Passo 3:** `apps/api/overlays/prod/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -854,7 +854,7 @@ patches:
 
 Prod usa o HPA da base (2 a 6 réplicas), sem patch.
 
-- [ ] **Passo 4:** `apps/web/overlays/staging/kustomization.yaml`
+- [x] **Passo 4:** `apps/web/overlays/staging/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -889,7 +889,7 @@ patches:
         value: 1
 ```
 
-- [ ] **Passo 5:** `apps/web/overlays/prod/kustomization.yaml`
+- [x] **Passo 5:** `apps/web/overlays/prod/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -924,7 +924,7 @@ patches:
         value: 2
 ```
 
-- [ ] **Passo 6: leia o YAML final** (é exatamente isso que o ArgoCD aplica)
+- [x] **Passo 6: leia o YAML final** (é exatamente isso que o ArgoCD aplica)
 
 ```bash
 kubectl kustomize apps/api/overlays/staging | less
@@ -947,7 +947,7 @@ kubectl kustomize apps/api/overlays/staging | grep 'image:'
 for app in api web; do kubectl kustomize apps/$app/overlays/staging | yq 'select(.kind == "Ingress") | .metadata.annotations'; done
 ```
 
-- [ ] **Passo 7: valide contra os schemas** (incluindo os CRDs do Argo Rollouts, que vêm do catálogo `datreeio/CRDs-catalog`: `argoproj.io/rollout_v1alpha1.json` e `argoproj.io/analysistemplate_v1alpha1.json`)
+- [x] **Passo 7: valide contra os schemas** (incluindo os CRDs do Argo Rollouts, que vêm do catálogo `datreeio/CRDs-catalog`: `argoproj.io/rollout_v1alpha1.json` e `argoproj.io/analysistemplate_v1alpha1.json`)
 
 ```bash
 CRDS='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
@@ -962,7 +962,7 @@ done
 
 Esperado: `Summary: N resources found ... - Valid: N, Invalid: 0, Errors: 0, Skipped: 0`. Se aparecer `Skipped` ou "could not find schema for Rollout", o template de URL está errado. O kubeconform põe o `kind` em minúsculas em `{{.ResourceKind}}`, e é assim que os arquivos do catálogo se chamam.
 
-- [ ] **Passo 8: adicione o job `manifests` ao CI** (`.github/workflows/ci.yml`, ao lado do job `infra`)
+- [x] **Passo 8: adicione o job `manifests` ao CI** (`.github/workflows/ci.yml`, ao lado do job `infra`)
 
 ```yaml
   manifests:

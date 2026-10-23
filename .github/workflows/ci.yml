@@ -30,3 +30,26 @@ jobs:
             terraform -chdir="$dir" validate
             echo "::endgroup::"
           done
+
+  manifests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Instala kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin kubeconform
+          kubeconform -v
+      - name: Valida manifests (kustomize + kubeconform com CRDs do Argo Rollouts)
+        shell: bash
+        run: |
+          set -euo pipefail
+          CRDS='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          for app in api web; do
+            for env in staging prod; do
+              echo "::group::$app/$env"
+              kubectl kustomize "apps/$app/overlays/$env" \
+                | kubeconform -strict -summary -schema-location default -schema-location "$CRDS" -
+              echo "::endgroup::"
+            done
+          done

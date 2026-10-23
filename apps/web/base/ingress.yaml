@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  annotations:
+    alb.ingress.kubernetes.io/group.name: shortener          # mesmo ALB do Ingress "api"
+    alb.ingress.kubernetes.io/scheme: internet-facing         # tem que ser igual ao do Ingress "api"
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    # certificate-arn: adicionado pelo overlay (o mesmo do Ingress "api")
+spec:
+  ingressClassName: alb
+  rules:
+    - host: app.placeholder.invalid           # overlay: app.<host>
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-active
+                port: { name: http }

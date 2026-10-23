@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: worker }
+spec:
+  replicas: 1   # o overlay define; nunca mais que o número de partições (3): réplicas extras ficam ociosas
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app.kubernetes.io/component: worker }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: shortener-api, app.kubernetes.io/component: worker }
+    spec:
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: shortener-api            # mesma imagem da api, outro entrypoint
+          command: ["node", "dist/worker.js"]
+          ports:
+            - { name: health, containerPort: 3001 }
+          envFrom:
+            - configMapRef: { name: shortener-infra }
+            - configMapRef: { name: shortener-api-config }   # o worker não usa OIDC nem CORS (o zod ignora)
+            - secretRef: { name: shortener-secrets }
+          livenessProbe:
+            httpGet: { path: /, port: health }
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }

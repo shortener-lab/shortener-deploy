@@ -1,0 +1,11 @@
+# Durante manutenção de nó (drain), no máximo 1 pod da api sai por vez.
+# Usamos maxUnavailable e não minAvailable: 1. Com 1 réplica só (staging), minAvailable: 1 bloquearia o drain para sempre.
+# O selector pega pods estáveis e canary (todos têm component=api).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/component: api }
