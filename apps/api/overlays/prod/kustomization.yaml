@@ -6,7 +6,7 @@ resources:
 images:
   - name: shortener-api
     newName: ghcr.io/shortener-lab/shortener-api
-    newTag: sha-17d93d0 # só muda pelo workflow "Promote" (Fase 8)
+    newTag: sha-5a9461e # só muda pelo workflow "Promote" (Fase 8)
 configMapGenerator:
   - name: shortener-api-config
     literals:
