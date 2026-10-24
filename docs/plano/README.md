@@ -42,7 +42,7 @@
 | 5 | [05-aws-organizacao-bootstrap.md](05-aws-organizacao-bootstrap.md) | deploy | Organização com 4 contas, SCPs, SSO, state remoto, certificados e Cognito por conta (**concluída**) | ~0 | 2–3h |
 | 6 | [06-terraform-ambientes.md](06-terraform-ambientes.md) | deploy | Staging sobe e desce com um comando, na sua própria conta, com Argo Rollouts (**concluída**) | ~US$ 0,38/h | 3–4h |
 | 7 | [07-kubernetes-gitops.md](07-kubernetes-gitops.md) | deploy | api (canary) e web (blue-green) no ar em staging via ArgoCD (**concluída**) | ~US$ 0,38/h | 3h |
-| 8 | [08-cd-promocao.md](08-cd-promocao.md) | os 3 | CD entre repos, promoção por app com aprovação, canary com bug abortando sozinho | ~US$ 0,76/h | 3h |
+| 8 | [08-cd-promocao.md](08-cd-promocao.md) | os 3 | CD entre repos, promoção por app com aprovação, canary com bug abortando sozinho (**concluída**; ver A20) | ~US$ 0,76/h | 3h |
 | 9 | [09-operacao.md](09-operacao.md) | os 3 | Caos, runbooks e desligamento verificado (incluindo fechar contas) | ~US$ 0,38–0,76/h | 1–2h |
 
 Buracos e defeitos encontrados durante a implementação, com status: [achados.md](achados.md).

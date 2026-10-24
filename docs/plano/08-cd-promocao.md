@@ -557,7 +557,7 @@ curl -sI https://app.shortener.fabricioroglio.com/ | grep -i cache-control   # n
 curl -s https://app.shortener.fabricioroglio.com/runtime/config.js           # apiBaseUrl = https://api.shortener...
 ```
 
-- [ ] **Passo 3: smoke test de prod pelo navegador**
+- [x] **Passo 3: smoke test de prod pelo navegador**
   1. Abra `https://app.shortener.fabricioroglio.com` → **Entrar**.
   2. O seu usuário de staging **não existe aqui**. Use **Sign up** no Hosted UI de prod, confirme o código que chega por e-mail e entre.
   3. Crie um link, abra a URL curta em outra aba e veja o clique nas stats.
@@ -612,7 +612,7 @@ export default function () {
 
 Commit por PR no `shortener-deploy`. O k6 roda do seu Mac, não do CI.
 
-- [ ] **Passo 2: crie um link em staging para a carga**
+- [x] **Passo 2: crie um link em staging para a carga**
 
 ```bash
 export API=https://api.shortener-staging.fabricioroglio.com
@@ -622,7 +622,7 @@ CODE=$(curl -s -X POST $API/links -H "x-api-key: $KEY" -H 'content-type: applica
   -d '{"url":"https://github.com"}' | jq -r .code); echo $CODE
 ```
 
-- [ ] **Passo 3: faça uma mudança visível no `shortener-api`, seguindo o TDD**
+- [x] **Passo 3: faça uma mudança visível no `shortener-api`, seguindo o TDD**
   - Branch `feat/version-header`.
   - **Primeiro o teste** em `test/integration/app.test.ts`, dentro do `describe` de `/healthz`:
 
@@ -645,7 +645,7 @@ CODE=$(curl -s -X POST $API/links -H "x-api-key: $KEY" -H 'content-type: applica
 
   - `npm test` → verde. Commit, push, `gh pr create --fill`, CI verde. **Ainda não faça o merge.**
 
-- [ ] **Passo 4: ligue a carga e faça o merge**
+- [x] **Passo 4: ligue a carga e faça o merge**
 
 ```bash
 # terminal 1 (no shortener-deploy): ~20 min cobre CI + Release + canary
@@ -666,7 +666,7 @@ O que observar no `--watch`:
 4. `SetWeight: 50`, pausa, segunda análise.
 5. `Status: ✔ Healthy`. O ReplicaSet antigo fica `ScaledDown` depois do `scaleDownDelaySeconds`.
 
-- [ ] **Passo 5: veja os pesos no ALB e as análises** (enquanto o canary está em 10% ou 50%)
+- [x] **Passo 5: veja os pesos no ALB e as análises** (enquanto o canary está em 10% ou 50%)
 
 ```bash
 export AWS_PROFILE=shortener-staging
@@ -695,7 +695,7 @@ Se o k6 acusar erros:
 - 502 → keep-alive do Node menor que o do ALB (Problemas comuns da Fase 7).
 - 503 → target group do canary vazio quando o peso subiu, preStop ou `deregistration_delay`.
 
-- [ ] **Passo 6: promova para prod, com carga em prod**
+- [x] **Passo 6: promova para prod, com carga em prod**
 
 ```bash
 PROD_CODE=<code criado em prod na Tarefa 8.5>
@@ -716,7 +716,7 @@ Esperado: os mesmos passos (10% → 50% → 100%), análises `Successful`, zero 
 
 **Por que o bug foge do TDD, de propósito:** o experimento só ensina algo se o bug chegar ao cluster, ou seja, se o CI passar. Um `Math.random()` puro faria os testes de `GET /:code` falharem ~30% das vezes (e o CI barraria, o que é ótimo na vida real, mas estraga o experimento). Então o bug depende de algo que **só existe dentro de um pod**: a variável `KUBERNETES_SERVICE_HOST`, que o kubelet injeta em todo container. No Vitest e no runner do GitHub ela não existe, então os testes nunca exercitam o caminho com defeito. É o clássico "só quebra em produção" (config, rede, permissão), simulado de forma controlada. O código fica marcado com um comentário e nunca vai para prod.
 
-- [ ] **Passo 1: o PR do bug, no `shortener-api`**
+- [x] **Passo 1: o PR do bug, no `shortener-api`**
 
 ```bash
 cd ~/Documents/projects/shortener-api
@@ -744,7 +744,7 @@ git push -u origin HEAD && gh pr create --fill
 gh pr checks --watch         # CI verde
 ```
 
-- [ ] **Passo 2: carga com threshold relaxado, e merge**
+- [x] **Passo 2: carga com threshold relaxado, e merge**
 
 **Por que relaxar o threshold:** o bug vai receber 10% do tráfego por ~3 minutos (pausa de 2 min + análise) até o abort. Com 30% de falha nesse pedaço, ~3% das requisições falham durante a janela, e ~0,5–1% no total da execução. Com `rate<=0`, o k6 reprovaria, mas o que queremos medir aqui é outra coisa: que o estrago fica **limitado e curto**. `MAX_FAIL_RATE=0.05` aceita esse blip e ainda reprovaria se o bug chegasse a 50% ou 100%.
 
@@ -759,7 +759,7 @@ gh pr merge --squash --delete-branch
 kubectl argo rollouts --context shortener-staging -n shortener get rollout api --watch
 ```
 
-- [ ] **Passo 3: observe** (escreva antes a sua hipótese)
+- [x] **Passo 3: observe** (escreva antes a sua hipótese)
   1. `SetWeight: 10`, `॥ Paused`. No k6, os `✗ 302` começam a aparecer (~2 por segundo a 20 rps).
   2. A `AnalysisRun` roda e termina **`✖ Failed`**: o valor medido fica perto de `0.3`, bem acima de `0.01`.
   3. O Rollout vira **`✖ Degraded`**, com a mensagem `RolloutAborted: Rollout aborted update to revision N: Metric "<métrica do api-error-rate>" assessed Failed ...`.
@@ -774,7 +774,7 @@ kubectl --context shortener-staging -n argocd get application shortener-api     
 
 **Por que o ArgoCD mostra `Degraded` e não volta sozinho a `Healthy`:** o Git (`apps/api/overlays/staging`) **ainda aponta para a tag com bug**. O ArgoCD está `Synced` (o spec aplicado é o do Git), mas o Rollout diz "abortei essa revisão". Ele fica assim até o Git mudar. O abort protege o tráfego; consertar o estado desejado é com você.
 
-- [ ] **Passo 4: corrija com roll-forward, no `shortener-api`**
+- [x] **Passo 4: corrija com roll-forward, no `shortener-api`**
 
 ```bash
 cd ~/Documents/projects/shortener-api
@@ -802,18 +802,18 @@ O Release gera uma imagem nova (`sha-<novo>`, com o mesmo código do estável), 
 - **Por que blue-green e não canary no SPA:** com tráfego dividido, o `index.html` novo (servido por um pod novo) pede `/assets/index-NOVOHASH.js`, e esse pedido pode cair num pod antigo, que só tem `index-VELHOHASH.js` → 404. No blue-green, cada requisição nova vai para **uma** versão inteira.
 - **Por que a mudança é texto estático e não "versão no rodapé":** a mesma imagem vai para staging e prod e a config de runtime não sabe a tag. Algo como `import.meta.env` é resolvido no build, e não é o objetivo aqui. Basta uma mudança visível no código.
 
-- [ ] **Passo 1: mudança visível, com TDD**
+- [x] **Passo 1: mudança visível, com TDD**
   - Branch `feat/titulo`.
   - Primeiro o teste do componente da landing (`/`): espere o título novo, por exemplo `screen.getByRole('heading', { name: 'Encurtador de links' })`. `npm test` → falha.
   - Depois o código: troque o texto do título na landing e o `<title>` do `index.html` para `Encurtador de links`. `npm test` → verde.
   - Push, PR, CI verde. Não faça o merge ainda.
 
-- [ ] **Passo 2: abra o painel ANTES da troca**
+- [x] **Passo 2: abra o painel ANTES da troca**
   1. Abra `https://app.shortener-staging.fabricioroglio.com`, faça login e vá para `/links`.
   2. DevTools → **Network** → marque **Preserve log** e filtre por `assets`.
   3. Anote o hash do `index-XXXX.js` carregado.
 
-- [ ] **Passo 3: merge e observe**
+- [x] **Passo 3: merge e observe**
 
 ```bash
 gh pr merge --squash --delete-branch
@@ -831,7 +831,7 @@ kubectl --context shortener-staging -n shortener get svc web-active -o jsonpath=
 # rollouts-pod-template-hash mudou para o hash do ReplicaSet novo
 ```
 
-- [ ] **Passo 4: navegue depois da troca, sem recarregar**
+- [x] **Passo 4: navegue depois da troca, sem recarregar**
   - Clique num link da lista (`/links/<code>`) e volte. A navegação é client-side (React Router): o bundle já está na memória da aba e nenhum `/assets/...` novo é pedido. **Nenhum 404** no Network.
   - Agora dê **F5**: aparece o título novo, o `index-YYYY.js` tem outro hash e todos os assets vêm 200.
 
@@ -841,7 +841,7 @@ kubectl --context shortener-staging -n shortener get svc web-active -o jsonpath=
 - **`scaleDownDelaySeconds: 30`:** os pods antigos não somem no instante da troca. Os pedidos que já estavam em voo, ou que chegam enquanto a mudança de seletor e de targets do ALB se propaga, ainda encontram quem responda (com os assets antigos). Depois disso, nenhum pedido novo vai para eles.
 - **Limite honesto:** se o app usasse *code splitting* (`React.lazy`), uma aba aberta antes da troca pediria um chunk antigo **depois** da troca, e ele daria 404. As saídas usuais são manter os assets das duas últimas versões na imagem ou recarregar a página ao detectar erro de chunk. Fica como extensão.
 
-- [ ] **Passo 5: promova o web para prod**
+- [x] **Passo 5: promova o web para prod**
 
 ```bash
 gh workflow run promote.yml --repo <org>/shortener-deploy -f app=web     # aprove na UI
@@ -862,7 +862,7 @@ Prod tem 2 réplicas do web: o preview sobe com 2 pods antes da troca.
 - **O rollback certo é uma mudança no Git:** um PR com `git revert` do commit `deploy(prod): ...` no `shortener-deploy`, ou o próprio "Promote" com a tag antiga.
 - **O rollback também passa pelos passos do canary** (é uma revisão nova para o Rollout), então leva ~6 minutos. Se quiser rollback instantâneo para revisões recentes, o Argo Rollouts tem `spec.rollbackWindow` (extensão).
 
-- [ ] **Passo 1: tente o rollback "errado"** (prod, com o header novo no ar)
+- [x] **Passo 1: tente o rollback "errado"** (prod, com o header novo no ar)
 
 ```bash
 kubectl argo rollouts --context shortener-prod -n shortener undo api
@@ -873,7 +873,7 @@ curl -sI https://shortener.fabricioroglio.com/healthz | grep -i x-shortener  # c
 
 Observe: o `undo` começa um canary para a versão antiga, o ArgoCD detecta a divergência e reaplica o template do Git, e o Rollout volta para a versão nova. No GitOps, `undo` manual não vale.
 
-- [ ] **Passo 2: faça o rollback certo, por PR no `shortener-deploy`**
+- [x] **Passo 2: faça o rollback certo, por PR no `shortener-deploy`**
 
 ```bash
 cd ~/Documents/projects/shortener-deploy
@@ -902,7 +902,7 @@ O header some quando chega a 100%.
 
 **Alternativa sem PR:** `gh workflow run promote.yml --repo <org>/shortener-deploy -f app=api -f tag=sha-ANTIGA`. Ela passa pelo `validate` (a tag antiga passou por staging) e pela sua aprovação, e o bot commita com bypass. Em incidente, é o caminho mais rápido com trilha de auditoria.
 
-- [ ] **Passo 3: botão de emergência (opcional, em staging)**
+- [ ] **Passo 3: botão de emergência (opcional, em staging)** (não feito: o abort automático da 8.7 mostrou o mesmo estado `Synced` + `Degraded`)
   - Dispare um canary qualquer (por exemplo, um merge trivial no `shortener-api`) e, com o Rollout em `Paused` a 10%, rode:
 
 ```bash
@@ -914,7 +914,7 @@ kubectl argo rollouts --context shortener-staging -n shortener retry rollout api
 
   - A Fase 9 (A6) explora isso com mais calma.
 
-- [ ] **Passo 4: volte para a versão nova** promovendo de novo pelo workflow (`-f app=api`, sem tag).
+- [x] **Passo 4: volte para a versão nova** promovendo de novo pelo workflow (`-f app=api`, sem tag).
 
 **Pronto quando:** você fez rollback e roll-forward pelo Git e sabe dizer por que o `undo` foi desfeito e o `abort` não.
 
@@ -931,12 +931,12 @@ O que segue como extensão: o CI assumir papéis na AWS via OIDC (para `terrafor
 
 ## Checkpoint da Fase 8
 
-- [ ] GitHub App instalado só no `shortener-deploy`; nenhum PAT nos repos
-- [ ] Merge no `shortener-api` ou no `shortener-web` leva a staging sem intervenção, com commit assinado pelo bot
-- [ ] A `main` do `shortener-deploy` recusa o seu push direto e aceita o do bot
-- [ ] Prod só muda com a sua aprovação, uma app por vez, e sempre com uma tag que já passou por staging
-- [ ] Canary da api com zero erros no k6, em staging e em prod; pesos vistos no ALB
-- [ ] **Canary com bug abortou sozinho**, e o roll-forward deixou tudo `Healthy`
-- [ ] Blue-green do web sem 404 de assets
+- [x] GitHub App instalado só no `shortener-deploy`; nenhum PAT nos repos
+- [x] Merge no `shortener-api` ou no `shortener-web` leva a staging sem intervenção, com commit assinado pelo bot
+- [x] A `main` do `shortener-deploy` recusa o seu push direto e aceita o do bot
+- [x] Prod só muda com a sua aprovação, uma app por vez, e sempre com uma tag que já passou por staging
+- [ ] Canary da api com zero erros no k6, em staging e em prod; pesos vistos no ALB (staging: 0 em 24.001; prod: 30 × 503 do ALB numa das promoções, ver A20; pesos vistos pela annotation e pela contagem do header, não pelo listener)
+- [x] **Canary com bug abortou sozinho**, e o roll-forward deixou tudo `Healthy`
+- [x] Blue-green do web sem 404 de assets
 - [ ] Rollback via Git; você sabe a diferença entre `undo` e `abort`
 - [ ] **Derrube os ambientes** (`scripts/down.sh prod && scripts/down.sh staging`) se não for para a Fase 9 agora
